@@ -7,7 +7,7 @@ import logging
 from typing import Any
 
 from google import genai
-from google.genai.types import GenerateContentConfig, Part
+from google.genai.types import GenerateContentConfig, Part, ThinkingConfig
 
 from bot.config import settings
 from bot.narrator.lore import LORE_SUMMARY, FACTION_LORE
@@ -126,6 +126,7 @@ Event hint: {event.get('narration_hint', '')}"""
                 system_instruction=system_prompt,
                 temperature=0.85,
                 max_output_tokens=500 if is_premium else 250,
+                thinking_config=ThinkingConfig(thinking_budget=0),
             ),
         )
         return response.text.strip()
@@ -188,7 +189,8 @@ Language: {lang_name} ONLY."""
             config=GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.88,
-                max_output_tokens=900,
+                max_output_tokens=1200,
+                thinking_config=ThinkingConfig(thinking_budget=0),
             ),
         )
         return response.text.strip()
@@ -229,6 +231,7 @@ IMPORTANT: For "build", always extract the building type from the message as the
                     temperature=0.1,
                     max_output_tokens=60,
                     response_mime_type="application/json",
+                    thinking_config=ThinkingConfig(thinking_budget=0),
                 ),
             )
             text_resp = response.text.strip()
@@ -306,7 +309,8 @@ End with a natural nudge toward action — suggest something relevant to their s
                     f"Respond ONLY in {lang_name}."
                 ),
                 temperature=0.85,
-                max_output_tokens=400,
+                max_output_tokens=600,
+                thinking_config=ThinkingConfig(thinking_budget=0),
             ),
         )
         return response.text.strip()
@@ -338,6 +342,7 @@ Respond with ONLY valid JSON, no markdown:
                 config=GenerateContentConfig(
                     temperature=0.1,
                     max_output_tokens=200,
+                    thinking_config=ThinkingConfig(thinking_budget=0),
                 ),
             )
             text_resp = response.text.strip()
