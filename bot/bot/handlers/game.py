@@ -15,6 +15,7 @@ from bot.db.queries.analytics import log_event
 from bot.engine.factions import get_faction_status
 from bot.engine.game_state import GameState
 from bot.engine.turn_processor import process_turn
+from bot.handlers.payment import send_premium_invoice
 from bot.i18n import get_text
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             parse_mode="Markdown",
         )
 
+    elif data == "cmd:premium":
+        await send_premium_invoice(
+            context.bot,
+            query.message.chat_id,
+            query.from_user.id,
+            lang,
+        )
+
 
 # ------------------------------------------------------------------
 # Turn execution
@@ -131,8 +140,12 @@ async def _execute_turn(
         pool, player_id, is_premium, settings.free_turns_per_day,
     )
     if not can_play:
-        text = get_text("turn_rate_limited", lang, max_turns=settings.free_turns_per_day)
-        await _reply(query_or_message, text)
+        text = get_text(
+            "turn_rate_limited", lang,
+            max_turns=settings.free_turns_per_day,
+            price=settings.premium_price_stars,
+        )
+        await _reply(query_or_message, text, reply_markup=_premium_keyboard(lang), parse_mode="Markdown")
         return
 
     # Load active game
@@ -315,6 +328,14 @@ def _status_keyboard(lang: str) -> InlineKeyboardMarkup:
     """Single-button keyboard — status only. Actions happen via text."""
     return InlineKeyboardMarkup([[
         InlineKeyboardButton("📊 " + get_text("action_status", lang), callback_data="cmd:status"),
+    ]])
+
+
+def _premium_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Keyboard shown when the daily turn limit is hit."""
+    label = "⭐ Get Premium" if lang != "ru" else "⭐ Оформить Премиум"
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(label, callback_data="cmd:premium"),
     ]])
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-from telegram import Update, LabeledPrice
+from telegram import Bot, Update, LabeledPrice
 from telegram.ext import ContextTypes
 
 from bot.config import settings
@@ -15,6 +15,28 @@ from bot.db.queries.analytics import log_event
 from bot.i18n import get_text
 
 logger = logging.getLogger(__name__)
+
+
+async def send_premium_invoice(bot: Bot, chat_id: int, user_id: int, lang: str) -> None:
+    """Send a Telegram Stars invoice for the Premium subscription."""
+    desc = (
+        "30 days of unlimited turns and richer AI narration. "
+        "Your settlement's story deepens."
+    )
+    if lang == "ru":
+        desc = (
+            "30 дней безлимитных ходов и более глубокого повествования ИИ. "
+            "История вашего поселения углубляется."
+        )
+    await bot.send_invoice(
+        chat_id=chat_id,
+        title="Wasteland Chronicles Premium",
+        description=desc,
+        payload=f"premium_{user_id}_{settings.premium_duration_days}",
+        provider_token="",
+        currency="XTR",
+        prices=[LabeledPrice("Premium (30 days)", settings.premium_price_stars)],
+    )
 
 
 async def handle_premium(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -37,24 +59,11 @@ async def handle_premium(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
     # Send Stars invoice
-    desc = (
-        "30 days of unlimited turns and richer AI narration. "
-        "Your settlement's story deepens."
-    )
-    if lang == "ru":
-        desc = (
-            "30 дней безлимитных ходов и более глубокого повествования ИИ. "
-            "История вашего поселения углубляется."
-        )
-
-    await context.bot.send_invoice(
-        chat_id=update.effective_chat.id,
-        title="Wasteland Chronicles Premium",
-        description=desc,
-        payload=f"premium_{update.effective_user.id}_{settings.premium_duration_days}",
-        provider_token="",  # Empty for Telegram Stars
-        currency="XTR",
-        prices=[LabeledPrice("Premium (30 days)", settings.premium_price_stars)],
+    await send_premium_invoice(
+        context.bot,
+        update.effective_chat.id,
+        update.effective_user.id,
+        lang,
     )
 
     await log_event(pool, str(player["id"]), "payment_started", {

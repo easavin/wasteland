@@ -107,12 +107,16 @@ _STRINGS: dict[str, dict[str, str]] = {
     # --- Turn results ---
     "turn_rate_limited": {
         "en": (
-            "You've used all {max_turns} turns for today.\n"
-            "Upgrade to Premium for unlimited turns!"
+            "You've used all {max_turns} free turns for today.\n"
+            "Free turns reset at midnight UTC — come back tomorrow.\n\n"
+            "⭐ *Premium* — unlimited turns + richer AI narration\n"
+            "{price} Stars for 30 days. Tap the button below to pay with Telegram Stars."
         ),
         "ru": (
-            "Вы использовали все {max_turns} ходов за сегодня.\n"
-            "Перейдите на Премиум для безлимитных ходов!"
+            "Вы использовали все {max_turns} бесплатных хода за сегодня.\n"
+            "Ходы обновятся в полночь UTC — возвращайтесь завтра.\n\n"
+            "⭐ *Премиум* — безлимитные ходы + расширенное повествование ИИ\n"
+            "{price} звёзд на 30 дней. Нажмите кнопку ниже, чтобы оплатить звёздами Telegram."
         ),
     },
     "turn_invalid_action": {

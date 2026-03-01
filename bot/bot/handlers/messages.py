@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import date as _date
 
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
+from bot.config import settings
 from bot.db.queries.players import get_player_by_telegram_id
 from bot.db.queries.game_states import get_active_game
 from bot.engine.game_state import GameState
-from bot.handlers.game import _execute_turn
+from bot.handlers.game import _execute_turn, _premium_keyboard
 from bot.i18n import get_text
 
 logger = logging.getLogger(__name__)
@@ -68,6 +70,18 @@ _KEYWORD_MAP = {
     "отдых": ("rest", None),
     "отдыхать": ("rest", None),
 }
+
+
+def _is_rate_limited(player: dict) -> bool:
+    """Return True if this free (non-premium) player has exhausted today's turns."""
+    if bool(player.get("is_premium")):
+        return False
+    today = _date.today()
+    last_turn_date = player.get("last_turn_date")
+    turns_today = player.get("turns_today") or 0
+    if last_turn_date is None or last_turn_date < today:
+        turns_today = 0
+    return turns_today >= settings.free_turns_per_day
 
 
 def _parse_keywords(text: str) -> tuple[str, str | None] | None:
@@ -135,6 +149,17 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 logger.exception("Profiler update failed")
 
         await _execute_turn(update.message, context, player, action, target)
+        return
+
+    # If the player has hit their daily turn cap, don't make any API calls —
+    # return a hardcoded rate-limit message with the premium upgrade button.
+    if _is_rate_limited(player):
+        rate_text = get_text(
+            "turn_rate_limited", lang,
+            max_turns=settings.free_turns_per_day,
+            price=settings.premium_price_stars,
+        )
+        await update.message.reply_text(rate_text, reply_markup=_premium_keyboard(lang), parse_mode="Markdown")
         return
 
     # Not a game action — if narrator is available, respond in-character
