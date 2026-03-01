@@ -261,6 +261,9 @@ async def handle_whisper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not target_player:
         await update.message.reply_text(get_text("whisper_not_found", player.get("language", "en")))
         return
+    if target_player.get("is_npc"):
+        await update.message.reply_text(get_text("whisper_npc", player.get("language", "en")))
+        return
 
     target_game = await get_active_game(pool, str(target_player["id"]))
     if not target_game:

@@ -17,7 +17,7 @@ async def get_guild_member_telegram_ids(
         SELECT p.telegram_id FROM guild_members gm
         JOIN game_states gs ON gs.id = gm.game_id
         JOIN players p ON p.id = gs.player_id
-        WHERE gm.guild_id = $1
+        WHERE gm.guild_id = $1 AND p.telegram_id > 0
         """,
         guild_id,
     )

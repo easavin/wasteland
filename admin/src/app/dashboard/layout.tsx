@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard/revenue", label: "Revenue", icon: "\u{1F4B0}" },
   { href: "/dashboard/games", label: "Games", icon: "\u{1F3AE}" },
   { href: "/dashboard/system", label: "System", icon: "\u{2699}\u{FE0F}" },
+  { href: "/dashboard/npcs", label: "NPCs", icon: "\u{1F464}" },
 ];
 
 export default function DashboardLayout({

@@ -46,6 +46,9 @@ async def handle_challenge(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not target_player:
         await update.message.reply_text(get_text("challenge_not_found", player.get("language", "en")))
         return
+    if target_player.get("is_npc"):
+        await update.message.reply_text(get_text("challenge_npc", player.get("language", "en")))
+        return
 
     target_game = await get_active_game(pool, str(target_player["id"]))
     if not target_game:

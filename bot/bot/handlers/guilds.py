@@ -146,6 +146,9 @@ async def _guild_invite(update: Update, context: ContextTypes.DEFAULT_TYPE, args
     if not target_player:
         await update.message.reply_text(get_text("guild_invite_not_found", player.get("language", "en")))
         return
+    if target_player.get("is_npc"):
+        await update.message.reply_text(get_text("guild_invite_npc", player.get("language", "en")))
+        return
 
     target_game = await get_active_game(pool, str(target_player["id"]))
     if not target_game:
@@ -170,15 +173,16 @@ async def _guild_invite(update: Update, context: ContextTypes.DEFAULT_TYPE, args
     inviter_name = get_display_name(game_row=game_row, player_row=player)
     msg = get_text("guild_invite_sent", player.get("language", "en"), name=inviter_name)
 
-    try:
-        lang = target_player.get("language", player.get("language", "en"))
-        await context.bot.send_message(
-            chat_id=target_player["telegram_id"],
-            text=get_text("guild_invite_received", lang,
-                guild=membership.get("guild_name", ""), inviter=inviter_name),
-        )
-    except Exception as e:
-        logger.warning("Guild invite notification failed: %s", e)
+    if target_player.get("telegram_id", 0) > 0:
+        try:
+            lang = target_player.get("language", player.get("language", "en"))
+            await context.bot.send_message(
+                chat_id=target_player["telegram_id"],
+                text=get_text("guild_invite_received", lang,
+                    guild=membership.get("guild_name", ""), inviter=inviter_name),
+            )
+        except Exception as e:
+            logger.warning("Guild invite notification failed: %s", e)
 
     await update.message.reply_text(msg)
 

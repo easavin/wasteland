@@ -274,6 +274,9 @@ async def handle_trade_direct(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not target_player:
         await update.message.reply_text(get_text("trade_target_not_found", player.get("language", "en")))
         return
+    if target_player.get("is_npc"):
+        await update.message.reply_text(get_text("trade_target_npc", player.get("language", "en")))
+        return
 
     target_game = await get_active_game(pool, str(target_player["id"]))
     if not target_game:
@@ -315,14 +318,15 @@ async def handle_trade_direct(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     seller_name = game_row.get("display_name") or player.get("first_name") or "?"
-    try:
-        await context.bot.send_message(
-            chat_id=target_player["telegram_id"],
-            text=get_text("trade_offer_received", target_player.get("language", "en"),
-                seller=seller_name, amount=amount, resource=resource, price=price, id=str(offer["id"])[:8]),
-        )
-    except Exception as e:
-        logger.warning("Trade notification failed: %s", e)
+    if target_player.get("telegram_id", 0) > 0:
+        try:
+            await context.bot.send_message(
+                chat_id=target_player["telegram_id"],
+                text=get_text("trade_offer_received", target_player.get("language", "en"),
+                    seller=seller_name, amount=amount, resource=resource, price=price, id=str(offer["id"])[:8]),
+            )
+        except Exception as e:
+            logger.warning("Trade notification failed: %s", e)
 
     await update.message.reply_text(
         get_text("trade_offer_sent", player.get("language", "en")),

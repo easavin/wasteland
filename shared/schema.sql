@@ -26,10 +26,12 @@ CREATE TABLE players (
     comm_profile    JSONB NOT NULL DEFAULT '{}',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    is_banned       BOOLEAN NOT NULL DEFAULT FALSE
+    is_banned       BOOLEAN NOT NULL DEFAULT FALSE,
+    is_npc          BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE INDEX idx_players_telegram_id ON players(telegram_id);
+CREATE INDEX idx_players_is_npc ON players(is_npc) WHERE is_npc = TRUE;
 CREATE INDEX idx_players_created_at ON players(created_at);
 
 -- GAME STATES
@@ -158,6 +160,40 @@ CREATE TABLE analytics_events (
 CREATE INDEX idx_analytics_type ON analytics_events(event_type);
 CREATE INDEX idx_analytics_created ON analytics_events(created_at);
 CREATE INDEX idx_analytics_player ON analytics_events(player_id);
+
+-- NPC QUESTS
+CREATE TABLE npc_quests (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    npc_player_id   UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    quest_key       VARCHAR(80) NOT NULL,
+    name            VARCHAR(100) NOT NULL,
+    description     TEXT NOT NULL,
+    requirements    JSONB NOT NULL DEFAULT '{}',
+    rewards         JSONB NOT NULL DEFAULT '{}',
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(npc_player_id, quest_key)
+);
+
+CREATE INDEX idx_npc_quests_npc ON npc_quests(npc_player_id);
+CREATE INDEX idx_npc_quests_active ON npc_quests(npc_player_id, is_active) WHERE is_active = TRUE;
+
+-- PLAYER QUEST PROGRESS
+CREATE TABLE player_quest_progress (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    player_id       UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    quest_id        UUID NOT NULL REFERENCES npc_quests(id) ON DELETE CASCADE,
+    status          VARCHAR(20) NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active', 'completed', 'failed')),
+    progress        JSONB NOT NULL DEFAULT '{}',
+    started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at    TIMESTAMPTZ,
+    UNIQUE(player_id, quest_id)
+);
+
+CREATE INDEX idx_player_quest_progress_player ON player_quest_progress(player_id);
+CREATE INDEX idx_player_quest_progress_quest ON player_quest_progress(quest_id);
 
 -- ADMIN USERS
 CREATE TABLE admin_users (

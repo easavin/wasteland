@@ -195,12 +195,13 @@ async def get_settlements_in_zone(
     if world_id:
         rows = await pool.fetch(
             """
-            SELECT gs.*, p.telegram_id, p.username, p.first_name
+            SELECT gs.*, p.telegram_id, p.username, p.first_name, p.is_npc
               FROM game_states gs
               JOIN players p ON p.id = gs.player_id
              WHERE gs.world_id = $1
                AND gs.zone = $2
                AND gs.status = 'active'
+               AND p.telegram_id > 0
             """,
             world_id,
             zone,
@@ -208,11 +209,12 @@ async def get_settlements_in_zone(
     else:
         rows = await pool.fetch(
             """
-            SELECT gs.*, p.telegram_id, p.username, p.first_name
+            SELECT gs.*, p.telegram_id, p.username, p.first_name, p.is_npc
               FROM game_states gs
               JOIN players p ON p.id = gs.player_id
              WHERE gs.zone = $1
                AND gs.status = 'active'
+               AND p.telegram_id > 0
             """,
             zone,
         )
@@ -226,11 +228,12 @@ async def get_settlements_in_world(
     """Return all active settlements in a world (for global chat broadcast)."""
     rows = await pool.fetch(
         """
-        SELECT gs.*, p.telegram_id, p.username, p.first_name
+        SELECT gs.*, p.telegram_id, p.username, p.first_name, p.is_npc
           FROM game_states gs
           JOIN players p ON p.id = gs.player_id
          WHERE gs.world_id = $1
            AND gs.status = 'active'
+           AND p.telegram_id > 0
         """,
         world_id,
     )

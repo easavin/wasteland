@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from bot.config import settings
 from bot.db.pool import init_db_pool, close_db_pool
-from bot.handlers import start, game, help as help_handler, payment, voice, messages, skills, shop, chat, guilds, trade, combat
+from bot.handlers import start, game, help as help_handler, payment, voice, messages, skills, shop, chat, guilds, trade, combat, quests
 from bot.narrator.gemini_client import GeminiNarrator
 from bot.narrator.profiler import PlayerProfiler
 from bot.utils.logger import setup_logging
@@ -42,6 +42,7 @@ async def post_init(application) -> None:
         BotCommand("guild",   "Guild commands"),
         BotCommand("market",  "Marketplace"),
         BotCommand("challenge", "PvP challenge"),
+        BotCommand("quest", "Find NPCs and quests"),
         BotCommand("skills",  "View and upgrade skills"),
         BotCommand("shop",    "Spend gold on supplies"),
         BotCommand("help",    "How to play"),
@@ -105,6 +106,7 @@ def main() -> None:
     app.add_handler(CommandHandler("market", trade.handle_market))
     app.add_handler(CommandHandler("trade", trade.handle_trade))
     app.add_handler(CommandHandler("challenge", combat.handle_challenge))
+    app.add_handler(CommandHandler("quest", quests.handle_quest))
     app.add_handler(CommandHandler("challengeaccept", combat.handle_challenge_accept))
     app.add_handler(CommandHandler("challengedecline", combat.handle_challenge_decline))
 

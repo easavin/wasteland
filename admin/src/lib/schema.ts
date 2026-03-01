@@ -35,6 +35,7 @@ export const players = pgTable(
       .notNull()
       .defaultNow(),
     isBanned: boolean("is_banned").notNull().default(false),
+    isNpc: boolean("is_npc").notNull().default(false),
   },
   (table) => [
     index("idx_players_telegram_id").on(table.telegramId),
@@ -174,6 +175,31 @@ export const analyticsEvents = pgTable(
     index("idx_analytics_type").on(table.eventType),
     index("idx_analytics_created").on(table.createdAt),
     index("idx_analytics_player").on(table.playerId),
+  ]
+);
+
+export const npcQuests = pgTable(
+  "npc_quests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    npcPlayerId: uuid("npc_player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    questKey: varchar("quest_key", { length: 80 }).notNull(),
+    name: varchar("name", { length: 100 }).notNull(),
+    description: text("description").notNull(),
+    requirements: jsonb("requirements").notNull().default({}),
+    rewards: jsonb("rewards").notNull().default({}),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("idx_npc_quests_npc").on(table.npcPlayerId),
   ]
 );
 
