@@ -96,12 +96,35 @@ async function getOutcomes() {
   }));
 }
 
+async function getTopPlayers() {
+  const rows = await db.execute(sql`
+    SELECT
+      g.settlement_name,
+      g.player_class,
+      g.level,
+      g.zone,
+      g.turn_number,
+      g.population,
+      g.gold,
+      p.username,
+      p.first_name
+    FROM game_states g
+    JOIN players p ON p.id = g.player_id
+    WHERE g.status = 'active'
+    ORDER BY g.level DESC, g.xp DESC
+    LIMIT 5
+  `);
+
+  return rows.rows as any[];
+}
+
 export default async function DashboardOverview() {
-  const [stats, dauData, turnsData, outcomes] = await Promise.all([
+  const [stats, dauData, turnsData, outcomes, topPlayers] = await Promise.all([
     getStats(),
     getDauChart(),
     getTurnsPerDayChart(),
     getOutcomes(),
+    getTopPlayers(),
   ]);
 
   const cards = [
@@ -153,6 +176,83 @@ export default async function DashboardOverview() {
         turnsData={turnsData}
         outcomes={outcomes}
       />
+
+      {/* Top Players Leaderboard */}
+      {topPlayers.length > 0 && (
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mt-6">
+          <div className="px-5 py-4 border-b border-neutral-800">
+            <h2 className="text-sm font-medium text-neutral-400">
+              Top Active Players (by level)
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-800">
+                  <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                    #
+                  </th>
+                  <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                    Player
+                  </th>
+                  <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                    Settlement
+                  </th>
+                  <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                    Class
+                  </th>
+                  <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                    Level
+                  </th>
+                  <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                    Zone
+                  </th>
+                  <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                    Week
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPlayers.map((p: any, i: number) => {
+                  const classEmoji: Record<string, string> = {
+                    scavenger: "\u{1F50D}",
+                    warden: "\u{1F6E1}",
+                    trader: "\u{1F4B0}",
+                    diplomat: "\u{1F54A}",
+                    medic: "\u{1F48A}",
+                  };
+                  return (
+                    <tr
+                      key={i}
+                      className="border-b border-neutral-800/50 hover:bg-neutral-800/30"
+                    >
+                      <td className="px-4 py-3 text-neutral-500 font-mono">
+                        {i + 1}
+                      </td>
+                      <td className="px-4 py-3 text-white">
+                        {p.username || p.first_name || "Anonymous"}
+                      </td>
+                      <td className="px-4 py-3 text-amber-400 font-medium">
+                        {p.settlement_name}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-400">
+                        {classEmoji[p.player_class] || ""} {p.player_class}
+                      </td>
+                      <td className="px-4 py-3 text-white font-bold">
+                        {p.level}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-400">{p.zone}</td>
+                      <td className="px-4 py-3 text-neutral-400">
+                        {p.turn_number}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

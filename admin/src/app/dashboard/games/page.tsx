@@ -5,27 +5,32 @@ import { GamesCharts } from "./games-charts";
 export const dynamic = "force-dynamic";
 
 async function getGameStats() {
-  const [active, winRate, avgSurvival] = await Promise.all([
+  const [active, avgSurvival, avgLevel, totalGold] = await Promise.all([
     db.execute(sql`
       SELECT COUNT(*) as count FROM game_states WHERE status = 'active'
-    `),
-    db.execute(sql`
-      SELECT
-        COUNT(CASE WHEN status = 'won' THEN 1 END)::float /
-        NULLIF(COUNT(CASE WHEN status != 'active' THEN 1 END), 0) * 100 as win_rate
-      FROM game_states
     `),
     db.execute(sql`
       SELECT AVG(turn_number)::numeric(10,1) as avg_turns
       FROM game_states
       WHERE status IN ('lost', 'abandoned')
     `),
+    db.execute(sql`
+      SELECT AVG(level)::numeric(10,1) as avg_level
+      FROM game_states
+      WHERE status = 'active'
+    `),
+    db.execute(sql`
+      SELECT SUM(gold) as total_gold
+      FROM game_states
+      WHERE status = 'active'
+    `),
   ]);
 
   return {
     activeGames: Number(active.rows[0]?.count || 0),
-    winRate: Number(winRate.rows[0]?.win_rate || 0).toFixed(1),
     avgSurvival: Number(avgSurvival.rows[0]?.avg_turns || 0).toFixed(1),
+    avgLevel: Number(avgLevel.rows[0]?.avg_level || 0).toFixed(1),
+    totalGold: Number(totalGold.rows[0]?.total_gold || 0),
   };
 }
 
@@ -46,6 +51,55 @@ async function getActionDistribution() {
   }));
 }
 
+async function getClassDistribution() {
+  const result = await db.execute(sql`
+    SELECT
+      CASE WHEN player_class = '' THEN 'unknown' ELSE player_class END as class,
+      COUNT(*) as count
+    FROM game_states
+    WHERE status = 'active'
+    GROUP BY class
+    ORDER BY count DESC
+  `);
+
+  const CLASS_LABELS: Record<string, string> = {
+    scavenger: "🔍 Scavenger",
+    warden: "🛡 Warden",
+    trader: "💰 Trader",
+    diplomat: "🕊 Diplomat",
+    medic: "💊 Medic",
+    unknown: "❓ Unknown",
+  };
+
+  return result.rows.map((r: any) => ({
+    name: CLASS_LABELS[r.class] || r.class,
+    value: Number(r.count),
+  }));
+}
+
+async function getLevelDistribution() {
+  const result = await db.execute(sql`
+    SELECT
+      CASE
+        WHEN level <= 3 THEN '1-3'
+        WHEN level <= 7 THEN '4-7'
+        WHEN level <= 12 THEN '8-12'
+        WHEN level <= 20 THEN '13-20'
+        ELSE '21+'
+      END as bucket,
+      COUNT(*) as count
+    FROM game_states
+    WHERE status = 'active'
+    GROUP BY bucket
+    ORDER BY MIN(level)
+  `);
+
+  return result.rows.map((r: any) => ({
+    bucket: r.bucket,
+    count: Number(r.count),
+  }));
+}
+
 async function getRecentGames() {
   const result = await db.execute(sql`
     SELECT
@@ -53,6 +107,10 @@ async function getRecentGames() {
       g.status,
       g.turn_number,
       g.settlement_name,
+      g.player_class,
+      g.level,
+      g.zone,
+      g.gold,
       g.population,
       g.food,
       g.scrap,
@@ -72,12 +130,23 @@ async function getRecentGames() {
   return result.rows as any[];
 }
 
+const CLASS_EMOJI: Record<string, string> = {
+  scavenger: "🔍",
+  warden: "🛡",
+  trader: "💰",
+  diplomat: "🕊",
+  medic: "💊",
+};
+
 export default async function GamesPage() {
-  const [stats, actions, recentGames] = await Promise.all([
-    getGameStats(),
-    getActionDistribution(),
-    getRecentGames(),
-  ]);
+  const [stats, actions, classDistro, levelDistro, recentGames] =
+    await Promise.all([
+      getGameStats(),
+      getActionDistribution(),
+      getClassDistribution(),
+      getLevelDistribution(),
+      getRecentGames(),
+    ]);
 
   const statCards = [
     {
@@ -85,11 +154,20 @@ export default async function GamesPage() {
       value: stats.activeGames.toLocaleString(),
       icon: "\u{1F3AE}",
     },
-    { label: "Win Rate", value: `${stats.winRate}%`, icon: "\u{1F3C6}" },
     {
-      label: "Avg Survival (turns)",
+      label: "Avg Survival (weeks)",
       value: stats.avgSurvival,
       icon: "\u{1F480}",
+    },
+    {
+      label: "Avg Level (active)",
+      value: stats.avgLevel,
+      icon: "\u{2B50}",
+    },
+    {
+      label: "Total Gold (active)",
+      value: stats.totalGold.toLocaleString(),
+      icon: "\u{1F4B0}",
     },
   ];
 
@@ -98,7 +176,7 @@ export default async function GamesPage() {
       <h1 className="text-2xl font-bold text-white mb-6">Games</h1>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map((card) => (
           <div
             key={card.label}
@@ -113,8 +191,12 @@ export default async function GamesPage() {
         ))}
       </div>
 
-      {/* Action Distribution Chart */}
-      <GamesCharts actions={actions} />
+      {/* Charts */}
+      <GamesCharts
+        actions={actions}
+        classDistribution={classDistro}
+        levelDistribution={levelDistro}
+      />
 
       {/* Recent Games Table */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mt-6">
@@ -134,13 +216,16 @@ export default async function GamesPage() {
                   Settlement
                 </th>
                 <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                  Class
+                </th>
+                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                  Level
+                </th>
+                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
                   Status
                 </th>
                 <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Turns
-                </th>
-                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Pop
+                  Week
                 </th>
                 <th className="text-left px-4 py-3 text-neutral-500 font-medium">
                   Resources
@@ -154,7 +239,7 @@ export default async function GamesPage() {
               {recentGames.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-neutral-600"
                   >
                     No games yet
@@ -172,16 +257,21 @@ export default async function GamesPage() {
                     <td className="px-4 py-3 text-amber-400 font-medium">
                       {game.settlement_name}
                     </td>
+                    <td className="px-4 py-3 text-neutral-400">
+                      {CLASS_EMOJI[game.player_class] || ""}{" "}
+                      {game.player_class || "-"}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-400">
+                      L{game.level} Z{game.zone}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
                           game.status === "active"
                             ? "bg-blue-900/40 text-blue-400"
-                            : game.status === "won"
-                              ? "bg-green-900/40 text-green-400"
-                              : game.status === "lost"
-                                ? "bg-red-900/40 text-red-400"
-                                : "bg-neutral-800 text-neutral-500"
+                            : game.status === "lost"
+                              ? "bg-red-900/40 text-red-400"
+                              : "bg-neutral-800 text-neutral-500"
                         }`}
                       >
                         {game.status}
@@ -190,12 +280,9 @@ export default async function GamesPage() {
                     <td className="px-4 py-3 text-neutral-400">
                       {game.turn_number}
                     </td>
-                    <td className="px-4 py-3 text-neutral-400">
-                      {game.population}
-                    </td>
                     <td className="px-4 py-3 text-neutral-500 text-xs font-mono">
-                      F:{game.food} S:{game.scrap} M:{game.morale} D:
-                      {game.defense}
+                      👥{game.population} 🌾{game.food} 🔩{game.scrap} 💰
+                      {game.gold} 😊{game.morale} 🛡{game.defense}
                     </td>
                     <td className="px-4 py-3 text-neutral-500 text-xs">
                       {new Date(game.started_at).toLocaleDateString()}

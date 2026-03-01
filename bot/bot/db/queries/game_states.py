@@ -12,6 +12,9 @@ _JSONB_COLUMNS = frozenset({
     "buildings",
     "active_effects",
     "narrator_memory",
+    "skills",
+    "milestones",
+    "inventory",
 })
 
 # All mutable columns on ``game_states`` that callers may pass to
@@ -21,11 +24,13 @@ _UPDATABLE_COLUMNS = frozenset({
     "status",
     "turn_number",
     "settlement_name",
+    "player_class",
     "population",
     "food",
     "scrap",
     "morale",
     "defense",
+    "gold",
     "food_zero_turns",
     "raiders_rep",
     "traders_rep",
@@ -37,6 +42,13 @@ _UPDATABLE_COLUMNS = frozenset({
     "buildings",
     "active_effects",
     "narrator_memory",
+    "xp",
+    "level",
+    "skill_points",
+    "skills",
+    "milestones",
+    "zone",
+    "inventory",
     "ended_at",
 })
 
@@ -45,8 +57,19 @@ async def create_game(
     pool: asyncpg.Pool,
     player_id: str,
     settlement_name: str,
+    *,
+    player_class: str = "",
+    population: int = 50,
+    food: int = 100,
+    scrap: int = 80,
+    morale: int = 70,
+    defense: int = 30,
+    gold: int = 0,
+    raiders_rep: int = 0,
+    traders_rep: int = 0,
+    remnants_rep: int = 0,
 ) -> dict:
-    """Insert a new game with default resource values and return the row.
+    """Insert a new game with (optionally overridden) starting values.
 
     The schema enforces a unique partial index so that a player may only have
     one ``active`` game at a time.  If an active game already exists the insert
@@ -54,12 +77,26 @@ async def create_game(
     """
     row = await pool.fetchrow(
         """
-        INSERT INTO game_states (player_id, settlement_name)
-        VALUES ($1, $2)
+        INSERT INTO game_states (
+            player_id, settlement_name, player_class,
+            population, food, scrap, morale, defense, gold,
+            raiders_rep, traders_rep, remnants_rep
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
         """,
         player_id,
         settlement_name,
+        player_class,
+        population,
+        food,
+        scrap,
+        morale,
+        defense,
+        gold,
+        raiders_rep,
+        traders_rep,
+        remnants_rep,
     )
     return dict(row)
 

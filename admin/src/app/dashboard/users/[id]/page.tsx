@@ -27,6 +27,8 @@ export default async function UserDetailPage({ params }: PageProps) {
     db.execute(sql`
       SELECT
         id, status, turn_number, settlement_name,
+        player_class, level, xp, zone, gold,
+        skill_points, skills,
         population, food, scrap, morale, defense,
         started_at, ended_at
       FROM game_states
@@ -150,6 +152,123 @@ export default async function UserDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* Active Game Details */}
+      {games.filter((g: any) => g.status === "active").length > 0 && (
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-medium text-neutral-400 mb-4">
+            Active Game
+          </h2>
+          {games
+            .filter((g: any) => g.status === "active")
+            .slice(0, 1)
+            .map((game: any) => {
+              const skills =
+                typeof game.skills === "string"
+                  ? JSON.parse(game.skills)
+                  : game.skills || {};
+              const classEmoji: Record<string, string> = {
+                scavenger: "🔍",
+                warden: "🛡",
+                trader: "💰",
+                diplomat: "🕊",
+                medic: "💊",
+              };
+              return (
+                <div key={game.id}>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <span className="text-neutral-500 text-xs block">
+                        Settlement
+                      </span>
+                      <span className="text-amber-400 font-medium">
+                        {game.settlement_name}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 text-xs block">
+                        Class
+                      </span>
+                      <span className="text-white">
+                        {classEmoji[game.player_class] || ""}{" "}
+                        {game.player_class || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 text-xs block">
+                        Level / Zone
+                      </span>
+                      <span className="text-white">
+                        ⭐ {game.level} / Zone {game.zone}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 text-xs block">
+                        Week
+                      </span>
+                      <span className="text-white">{game.turn_number}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
+                    <div className="bg-neutral-800 rounded-lg p-3 text-center">
+                      <div className="text-xs text-neutral-500">Pop</div>
+                      <div className="text-white font-bold">
+                        👥 {game.population}
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800 rounded-lg p-3 text-center">
+                      <div className="text-xs text-neutral-500">Food</div>
+                      <div className="text-white font-bold">
+                        🌾 {game.food}
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800 rounded-lg p-3 text-center">
+                      <div className="text-xs text-neutral-500">Scrap</div>
+                      <div className="text-white font-bold">
+                        🔩 {game.scrap}
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800 rounded-lg p-3 text-center">
+                      <div className="text-xs text-neutral-500">Gold</div>
+                      <div className="text-amber-400 font-bold">
+                        💰 {game.gold}
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800 rounded-lg p-3 text-center">
+                      <div className="text-xs text-neutral-500">Morale</div>
+                      <div className="text-white font-bold">
+                        😊 {game.morale}
+                      </div>
+                    </div>
+                    <div className="bg-neutral-800 rounded-lg p-3 text-center">
+                      <div className="text-xs text-neutral-500">Defense</div>
+                      <div className="text-white font-bold">
+                        🛡 {game.defense}
+                      </div>
+                    </div>
+                  </div>
+                  {Object.keys(skills).length > 0 && (
+                    <div>
+                      <span className="text-neutral-500 text-xs block mb-2">
+                        Skills ({game.skill_points} points available)
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(skills).map(([skillId, rank]) => (
+                          <span
+                            key={skillId}
+                            className="text-xs bg-indigo-900/40 text-indigo-300 px-2 py-1 rounded-full"
+                          >
+                            {skillId.replace(/_/g, " ")} ×{String(rank)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      )}
+
       {/* Game History */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mb-6">
         <div className="px-5 py-4 border-b border-neutral-800">
@@ -165,25 +284,19 @@ export default async function UserDetailPage({ params }: PageProps) {
                   Settlement
                 </th>
                 <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                  Class
+                </th>
+                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
+                  Level
+                </th>
+                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
                   Status
                 </th>
                 <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Turns
+                  Weeks
                 </th>
                 <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Pop
-                </th>
-                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Food
-                </th>
-                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Scrap
-                </th>
-                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Morale
-                </th>
-                <th className="text-left px-4 py-3 text-neutral-500 font-medium">
-                  Defense
+                  Resources
                 </th>
                 <th className="text-left px-4 py-3 text-neutral-500 font-medium">
                   Started
@@ -194,14 +307,14 @@ export default async function UserDetailPage({ params }: PageProps) {
               {games.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-neutral-600"
                   >
                     No games played
                   </td>
                 </tr>
               ) : (
-                games.map((game) => (
+                games.map((game: any) => (
                   <tr
                     key={game.id}
                     className="border-b border-neutral-800/50 hover:bg-neutral-800/30"
@@ -209,22 +322,21 @@ export default async function UserDetailPage({ params }: PageProps) {
                     <td className="px-4 py-3 text-white font-medium">
                       {game.settlement_name}
                     </td>
+                    <td className="px-4 py-3 text-neutral-400">
+                      {game.player_class || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-400">
+                      L{game.level} Z{game.zone}
+                    </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={game.status} />
                     </td>
                     <td className="px-4 py-3 text-neutral-400">
                       {game.turn_number}
                     </td>
-                    <td className="px-4 py-3 text-neutral-400">
-                      {game.population}
-                    </td>
-                    <td className="px-4 py-3 text-neutral-400">{game.food}</td>
-                    <td className="px-4 py-3 text-neutral-400">{game.scrap}</td>
-                    <td className="px-4 py-3 text-neutral-400">
-                      {game.morale}
-                    </td>
-                    <td className="px-4 py-3 text-neutral-400">
-                      {game.defense}
+                    <td className="px-4 py-3 text-neutral-500 text-xs font-mono">
+                      👥{game.population} 🌾{game.food} 🔩{game.scrap} 💰
+                      {game.gold}
                     </td>
                     <td className="px-4 py-3 text-neutral-500 text-xs">
                       {new Date(game.started_at).toLocaleDateString()}

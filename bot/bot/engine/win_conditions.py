@@ -11,31 +11,28 @@ if TYPE_CHECKING:
 def check_win(state: GameState) -> bool:
     """Return ``True`` if the player has achieved victory.
 
-    Victory conditions (all must be met):
-      * Reached turn 50 or later
-      * Population >= 100
-      * Morale >= 60
+    The game is now unlimited — there is no win condition.
     """
-    return (
-        state.turn_number >= 50
-        and state.population >= 100
-        and state.morale >= 60
-    )
+    return False
 
 
-def check_loss(state: GameState) -> tuple[bool, str]:
+def check_loss(
+    state: GameState,
+    starvation_threshold: int = 2,
+) -> tuple[bool, str]:
     """Return ``(is_lost, reason)`` indicating whether the game has ended in defeat.
 
     Loss conditions (any one triggers defeat):
       * Population drops to zero  ->  ``"population_zero"``
-      * Food has been at zero for 2 or more consecutive turns  ->  ``"starvation"``
+      * Food has been at zero for *starvation_threshold* or more consecutive
+        turns  ->  ``"starvation"``  (default 2; Medic class uses 3)
 
     If the game is not lost the returned reason is an empty string.
     """
     if state.population <= 0:
         return True, "population_zero"
 
-    if state.food_zero_turns >= 2:
+    if state.food_zero_turns >= starvation_threshold:
         return True, "starvation"
 
     return False, ""

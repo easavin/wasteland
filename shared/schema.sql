@@ -31,11 +31,14 @@ CREATE TABLE game_states (
     turn_number     INT NOT NULL DEFAULT 0,
     settlement_name VARCHAR(100) NOT NULL,
 
+    player_class    VARCHAR(20) NOT NULL DEFAULT '',
+
     population      INT NOT NULL DEFAULT 50,
     food            INT NOT NULL DEFAULT 100,
     scrap           INT NOT NULL DEFAULT 80,
     morale          INT NOT NULL DEFAULT 70,
     defense         INT NOT NULL DEFAULT 30,
+    gold            INT NOT NULL DEFAULT 0,
 
     food_zero_turns INT NOT NULL DEFAULT 0,
 
@@ -51,6 +54,14 @@ CREATE TABLE game_states (
     buildings       JSONB NOT NULL DEFAULT '{}',
     active_effects  JSONB NOT NULL DEFAULT '[]',
     narrator_memory JSONB NOT NULL DEFAULT '[]',
+
+    xp              INT NOT NULL DEFAULT 0,
+    level           INT NOT NULL DEFAULT 1,
+    skill_points    INT NOT NULL DEFAULT 0,
+    skills          JSONB NOT NULL DEFAULT '{}',
+    milestones      JSONB NOT NULL DEFAULT '[]',
+    zone            INT NOT NULL DEFAULT 1,
+    inventory       JSONB NOT NULL DEFAULT '[]',
 
     started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     ended_at        TIMESTAMPTZ,
@@ -87,6 +98,12 @@ CREATE TABLE turn_history (
 
     narration       TEXT NOT NULL,
     narration_lang  VARCHAR(5) NOT NULL DEFAULT 'en',
+
+    xp_earned       INT NOT NULL DEFAULT 0,
+    gold_before     INT NOT NULL DEFAULT 0,
+    gold_delta      INT NOT NULL DEFAULT 0,
+    level_before    INT NOT NULL DEFAULT 1,
+    level_after     INT NOT NULL DEFAULT 1,
 
     voice_input     BOOLEAN NOT NULL DEFAULT FALSE,
     voice_text      TEXT,

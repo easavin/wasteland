@@ -5,6 +5,7 @@ Each event has:
     name          - dict with en/ru translations
     category      - environmental | population | combat | trade | lore | exploration
     min_turn      - earliest turn this event can fire
+    min_zone      - minimum zone required (default 1)
     weight        - base selection weight (higher = more likely)
     conditions    - optional callable(state) -> bool; event is eligible only when True
     outcomes      - list of possible outcomes, each with:
@@ -14,6 +15,7 @@ Each event has:
 from __future__ import annotations
 
 import random
+from math import ceil
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
@@ -35,12 +37,15 @@ def _always(_state: "GameState") -> bool:  # noqa: D401
 # ---------------------------------------------------------------------------
 
 EVENT_CATALOG: list[dict] = [
+    # ==== ZONE 1 EVENTS (original) ====
+
     # ---- ENVIRONMENTAL ----
     {
         "id": "dust_storm",
-        "name": {"en": "Dust Storm", "ru": "\u041f\u044b\u043b\u0435\u0432\u0430\u044f \u0431\u0443\u0440\u044f"},
+        "name": {"en": "Dust Storm", "ru": "Пылевая буря"},
         "category": "environmental",
         "min_turn": 1,
+        "min_zone": 1,
         "weight": 12,
         "conditions": _always,
         "outcomes": [
@@ -58,9 +63,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "water_source",
-        "name": {"en": "Water Source Found", "ru": "\u041d\u0430\u0439\u0434\u0435\u043d \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a \u0432\u043e\u0434\u044b"},
+        "name": {"en": "Water Source Found", "ru": "Найден источник воды"},
         "category": "environmental",
         "min_turn": 5,
+        "min_zone": 1,
         "weight": 8,
         "conditions": _always,
         "outcomes": [
@@ -78,9 +84,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "green_zone_discovery",
-        "name": {"en": "Green Zone Discovery", "ru": "\u041d\u0430\u0439\u0434\u0435\u043d\u0430 \u0437\u0435\u043b\u0451\u043d\u0430\u044f \u0437\u043e\u043d\u0430"},
+        "name": {"en": "Green Zone Discovery", "ru": "Найдена зелёная зона"},
         "category": "environmental",
         "min_turn": 10,
+        "min_zone": 1,
         "weight": 6,
         "conditions": lambda s: s.population >= 30,
         "outcomes": [
@@ -103,9 +110,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "harvest_bounty",
-        "name": {"en": "Harvest Bounty", "ru": "\u0411\u043e\u0433\u0430\u0442\u044b\u0439 \u0443\u0440\u043e\u0436\u0430\u0439"},
+        "name": {"en": "Harvest Bounty", "ru": "Богатый урожай"},
         "category": "environmental",
         "min_turn": 3,
+        "min_zone": 1,
         "weight": 10,
         "conditions": lambda s: s.buildings.get("farm", 0) >= 1,
         "outcomes": [
@@ -119,9 +127,10 @@ EVENT_CATALOG: list[dict] = [
     # ---- POPULATION ----
     {
         "id": "wanderers",
-        "name": {"en": "Wanderers Arrive", "ru": "\u041f\u0440\u0438\u0431\u044b\u043b\u0438 \u0441\u043a\u0438\u0442\u0430\u043b\u044c\u0446\u044b"},
+        "name": {"en": "Wanderers Arrive", "ru": "Прибыли скитальцы"},
         "category": "population",
         "min_turn": 2,
+        "min_zone": 1,
         "weight": 12,
         "conditions": _always,
         "outcomes": [
@@ -144,9 +153,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "plague_outbreak",
-        "name": {"en": "Plague Outbreak", "ru": "\u0412\u0441\u043f\u044b\u0448\u043a\u0430 \u0447\u0443\u043c\u044b"},
+        "name": {"en": "Plague Outbreak", "ru": "Вспышка чумы"},
         "category": "population",
         "min_turn": 8,
+        "min_zone": 1,
         "weight": 7,
         "conditions": lambda s: s.population >= 40,
         "outcomes": [
@@ -169,9 +179,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "accord_refugees",
-        "name": {"en": "Accord Refugees", "ru": "\u0411\u0435\u0436\u0435\u043d\u0446\u044b \u0410\u043a\u043a\u043e\u0440\u0434\u0430"},
+        "name": {"en": "Accord Refugees", "ru": "Беженцы Аккорда"},
         "category": "population",
         "min_turn": 12,
+        "min_zone": 1,
         "weight": 7,
         "conditions": lambda s: s.traders_rep >= -10,
         "outcomes": [
@@ -194,9 +205,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "morale_crisis",
-        "name": {"en": "Morale Crisis", "ru": "\u041a\u0440\u0438\u0437\u0438\u0441 \u043c\u043e\u0440\u0430\u043b\u0438"},
+        "name": {"en": "Morale Crisis", "ru": "Кризис морали"},
         "category": "population",
         "min_turn": 6,
+        "min_zone": 1,
         "weight": 8,
         "conditions": lambda s: s.morale < 45,
         "outcomes": [
@@ -215,9 +227,10 @@ EVENT_CATALOG: list[dict] = [
     # ---- COMBAT ----
     {
         "id": "raider_skirmish",
-        "name": {"en": "Raider Skirmish", "ru": "\u0421\u0442\u044b\u0447\u043a\u0430 \u0441 \u0440\u0435\u0439\u0434\u0435\u0440\u0430\u043c\u0438"},
+        "name": {"en": "Raider Skirmish", "ru": "Стычка с рейдерами"},
         "category": "combat",
         "min_turn": 3,
+        "min_zone": 1,
         "weight": 14,
         "conditions": _always,
         "outcomes": [
@@ -240,9 +253,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "mutant_herd",
-        "name": {"en": "Mutant Herd", "ru": "\u0421\u0442\u0430\u0434\u043e \u043c\u0443\u0442\u0430\u043d\u0442\u043e\u0432"},
+        "name": {"en": "Mutant Herd", "ru": "Стадо мутантов"},
         "category": "combat",
         "min_turn": 7,
+        "min_zone": 1,
         "weight": 8,
         "conditions": _always,
         "outcomes": [
@@ -265,9 +279,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "hegemony_scouts",
-        "name": {"en": "Hegemony Scouts", "ru": "\u0420\u0430\u0437\u0432\u0435\u0434\u0447\u0438\u043a\u0438 \u0413\u0435\u0433\u0435\u043c\u043e\u043d\u0438\u0438"},
+        "name": {"en": "Hegemony Scouts", "ru": "Разведчики Гегемонии"},
         "category": "combat",
         "min_turn": 15,
+        "min_zone": 1,
         "weight": 7,
         "conditions": lambda s: s.population >= 50,
         "outcomes": [
@@ -291,34 +306,36 @@ EVENT_CATALOG: list[dict] = [
     # ---- TRADE ----
     {
         "id": "trade_caravan",
-        "name": {"en": "Trade Caravan", "ru": "\u0422\u043e\u0440\u0433\u043e\u0432\u044b\u0439 \u043a\u0430\u0440\u0430\u0432\u0430\u043d"},
+        "name": {"en": "Trade Caravan", "ru": "Торговый караван"},
         "category": "trade",
         "min_turn": 4,
+        "min_zone": 1,
         "weight": 12,
         "conditions": _always,
         "outcomes": [
             {
                 "weight": 50,
-                "deltas": {"food": 15, "scrap": -10, "morale": 3},
-                "narration_hint": "A merchant caravan offers food for scrap at fair prices.",
+                "deltas": {"food": 15, "scrap": -10, "morale": 3, "gold": 3},
+                "narration_hint": "A merchant caravan offers food for scrap at fair prices. They pay in gold too.",
             },
             {
                 "weight": 30,
-                "deltas": {"scrap": 12, "food": -8},
-                "narration_hint": "Traders want food - they offer quality salvage in return.",
+                "deltas": {"scrap": 12, "food": -8, "gold": 5},
+                "narration_hint": "Traders want food - they offer quality salvage and gold in return.",
             },
             {
                 "weight": 20,
-                "deltas": {"food": 10, "scrap": 10, "morale": 5},
-                "narration_hint": "A generous caravan shares supplies freely - is it a trap?",
+                "deltas": {"food": 10, "scrap": 10, "morale": 5, "gold": 8},
+                "narration_hint": "A generous caravan shares supplies freely and leaves a pouch of gold.",
             },
         ],
     },
     {
         "id": "faction_civil_war",
-        "name": {"en": "Faction Civil War", "ru": "\u0413\u0440\u0430\u0436\u0434\u0430\u043d\u0441\u043a\u0430\u044f \u0432\u043e\u0439\u043d\u0430 \u0444\u0440\u0430\u043a\u0446\u0438\u0438"},
+        "name": {"en": "Faction Civil War", "ru": "Гражданская война фракции"},
         "category": "trade",
         "min_turn": 20,
+        "min_zone": 1,
         "weight": 5,
         "conditions": lambda s: (
             s.raiders_rep > 20 or s.traders_rep > 20 or s.remnants_rep > 20
@@ -339,9 +356,10 @@ EVENT_CATALOG: list[dict] = [
     # ---- LORE ----
     {
         "id": "network_broadcast",
-        "name": {"en": "The Network's Broadcast", "ru": "\u0422\u0440\u0430\u043d\u0441\u043b\u044f\u0446\u0438\u044f \u0421\u0435\u0442\u0438"},
+        "name": {"en": "The Network's Broadcast", "ru": "Трансляция Сети"},
         "category": "lore",
         "min_turn": 8,
+        "min_zone": 1,
         "weight": 7,
         "conditions": _always,
         "outcomes": [
@@ -372,9 +390,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "thinking_machine_signal",
-        "name": {"en": "Thinking Machine Signal", "ru": "\u0421\u0438\u0433\u043d\u0430\u043b \u041c\u044b\u0441\u043b\u044f\u0449\u0435\u0439 \u041c\u0430\u0448\u0438\u043d\u044b"},
+        "name": {"en": "Thinking Machine Signal", "ru": "Сигнал Мыслящей Машины"},
         "category": "lore",
         "min_turn": 18,
+        "min_zone": 1,
         "weight": 5,
         "conditions": lambda s: s.remnants_rep >= 0,
         "outcomes": [
@@ -406,9 +425,10 @@ EVENT_CATALOG: list[dict] = [
     },
     {
         "id": "digital_cache",
-        "name": {"en": "Digital Cache", "ru": "\u0426\u0438\u0444\u0440\u043e\u0432\u043e\u0439 \u0442\u0430\u0439\u043d\u0438\u043a"},
+        "name": {"en": "Digital Cache", "ru": "Цифровой тайник"},
         "category": "lore",
         "min_turn": 10,
+        "min_zone": 1,
         "weight": 6,
         "conditions": _always,
         "outcomes": [
@@ -440,9 +460,10 @@ EVENT_CATALOG: list[dict] = [
     # ---- EXPLORATION ----
     {
         "id": "tech_salvage",
-        "name": {"en": "Tech Salvage", "ru": "\u0422\u0435\u0445\u043d\u043e\u043b\u043e\u0433\u0438\u0447\u0435\u0441\u043a\u0430\u044f \u043d\u0430\u0445\u043e\u0434\u043a\u0430"},
+        "name": {"en": "Tech Salvage", "ru": "Технологическая находка"},
         "category": "exploration",
         "min_turn": 5,
+        "min_zone": 1,
         "weight": 10,
         "conditions": _always,
         "outcomes": [
@@ -458,6 +479,447 @@ EVENT_CATALOG: list[dict] = [
             },
         ],
     },
+
+    # ==== ZONE 2+ EVENTS ====
+    {
+        "id": "hegemony_patrol",
+        "name": {"en": "Hegemony Patrol", "ru": "Патруль Гегемонии"},
+        "category": "combat",
+        "min_turn": 1,
+        "min_zone": 2,
+        "weight": 10,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 50,
+                "deltas": {"defense": -12, "population": -4, "scrap": -10},
+                "narration_hint": "A heavily armed Hegemony patrol attacks without warning.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"gold": -8, "defense": -5},
+                "narration_hint": "The patrol demands gold tribute. You pay to avoid bloodshed.",
+            },
+            {
+                "weight": 20,
+                "deltas": {"defense": -8, "morale": 10, "scrap": 15},
+                "narration_hint": "Your defenders ambush the patrol and seize their supplies.",
+            },
+        ],
+    },
+    {
+        "id": "toxic_rain",
+        "name": {"en": "Toxic Rain", "ru": "Токсичный дождь"},
+        "category": "environmental",
+        "min_turn": 1,
+        "min_zone": 2,
+        "weight": 8,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 60,
+                "deltas": {"food": -15, "morale": -8, "population": -2},
+                "narration_hint": "Acid rain falls for hours, poisoning crops and sickening settlers.",
+            },
+            {
+                "weight": 40,
+                "deltas": {"food": -10, "scrap": 8},
+                "narration_hint": "The toxic rain corrodes structures but exposes metal beneath.",
+            },
+        ],
+    },
+    {
+        "id": "rare_mineral_vein",
+        "name": {"en": "Rare Mineral Vein", "ru": "Жила редких минералов"},
+        "category": "exploration",
+        "min_turn": 1,
+        "min_zone": 2,
+        "weight": 7,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 50,
+                "deltas": {"scrap": 30, "gold": 10},
+                "narration_hint": "Miners discover a vein of pre-Collapse alloy. Worth a fortune.",
+            },
+            {
+                "weight": 50,
+                "deltas": {"scrap": 15, "gold": 5, "population": -2},
+                "narration_hint": "The mine yields riches but a cave-in claims lives.",
+            },
+        ],
+    },
+
+    # ==== ZONE 3+ EVENTS ====
+    {
+        "id": "machine_uprising",
+        "name": {"en": "Machine Uprising", "ru": "Восстание машин"},
+        "category": "combat",
+        "min_turn": 1,
+        "min_zone": 3,
+        "weight": 8,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 40,
+                "deltas": {"defense": -15, "population": -5, "scrap": -15},
+                "narration_hint": "Automated defense systems turn hostile. Your own machines attack.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"defense": -10, "morale": -10},
+                "narration_hint": "Rogue drones patrol the perimeter, firing at anything that moves.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"scrap": 25, "defense": 5, "population": -3},
+                "narration_hint": "After heavy losses, you reprogram the machines. They serve you now.",
+            },
+        ],
+    },
+    {
+        "id": "great_storm",
+        "name": {"en": "The Great Storm", "ru": "Великая буря"},
+        "category": "environmental",
+        "min_turn": 1,
+        "min_zone": 3,
+        "weight": 7,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 60,
+                "deltas": {"food": -20, "defense": -15, "morale": -10},
+                "narration_hint": "A cataclysmic storm batters the settlement for days. Everything suffers.",
+            },
+            {
+                "weight": 40,
+                "deltas": {"food": -10, "defense": -8, "scrap": 15},
+                "narration_hint": "The storm is devastating but washes up debris from distant ruins.",
+            },
+        ],
+    },
+
+    # ==== ZONE 4+ EVENTS ====
+    {
+        "id": "network_siege",
+        "name": {"en": "The Network Siege", "ru": "Осада Сети"},
+        "category": "combat",
+        "min_turn": 1,
+        "min_zone": 4,
+        "weight": 8,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 50,
+                "deltas": {"defense": -20, "population": -8, "food": -15, "morale": -10},
+                "narration_hint": "The Network launches a full assault on the settlement. A desperate battle.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"defense": -15, "scrap": -20, "gold": -10},
+                "narration_hint": "Network agents sabotage infrastructure and loot the treasury.",
+            },
+            {
+                "weight": 20,
+                "deltas": {"defense": -10, "morale": 15, "gold": 20, "scrap": 20},
+                "narration_hint": "Against all odds, you break the siege and capture their war chest.",
+            },
+        ],
+    },
+    {
+        "id": "ancient_bunker",
+        "name": {"en": "Ancient Bunker", "ru": "Древний бункер"},
+        "category": "exploration",
+        "min_turn": 1,
+        "min_zone": 4,
+        "weight": 6,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 40,
+                "deltas": {"scrap": 40, "gold": 15, "morale": 8},
+                "narration_hint": "A pre-Collapse military bunker is cracked open. Treasure beyond measure.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"scrap": 25, "defense": 10, "population": -3},
+                "narration_hint": "The bunker's automated defenses activate before you secure it.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"gold": 10, "morale": -8},
+                "narration_hint": "Inside the bunker: records of atrocities committed before the Collapse.",
+            },
+        ],
+    },
+
+    # ==== ADDITIONAL ZONE 2 EVENTS ====
+    {
+        "id": "wasting_resurgence",
+        "name": {"en": "Wasting Resurgence", "ru": "Возрождение Чумы"},
+        "category": "population",
+        "min_turn": 1,
+        "min_zone": 2,
+        "weight": 7,
+        "conditions": lambda s: s.population >= 40,
+        "outcomes": [
+            {
+                "weight": 50,
+                "deltas": {"population": -6, "morale": -8, "food": -5},
+                "narration_hint": "The Wasting flares up in your settlement. Quarantine empties the streets.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"population": -3, "morale": -5},
+                "narration_hint": "A milder strain of The Wasting passes through. Survivors develop immunity.",
+            },
+            {
+                "weight": 20,
+                "deltas": {"population": -2, "morale": 5, "scrap": 10},
+                "narration_hint": "Your medics contain the outbreak quickly. Abandoned quarantine zones yield supplies.",
+            },
+        ],
+    },
+    {
+        "id": "smuggler_contact",
+        "name": {"en": "Smuggler Contact", "ru": "Контрабандист"},
+        "category": "trade",
+        "min_turn": 1,
+        "min_zone": 2,
+        "weight": 8,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 40,
+                "deltas": {"gold": 8, "scrap": 15, "morale": -3},
+                "narration_hint": "A shady smuggler offers rare goods. The deal feels wrong but the price is right.",
+            },
+            {
+                "weight": 35,
+                "deltas": {"gold": 5, "food": 12},
+                "narration_hint": "A smuggler trades contraband food supplies for gold. No questions asked.",
+            },
+            {
+                "weight": 25,
+                "deltas": {"gold": -5, "morale": -5},
+                "narration_hint": "The smuggler's goods turn out to be worthless. You've been had.",
+            },
+        ],
+    },
+
+    # ==== ADDITIONAL ZONE 3 EVENTS ====
+    {
+        "id": "drone_swarm",
+        "name": {"en": "Drone Swarm", "ru": "Рой дронов"},
+        "category": "combat",
+        "min_turn": 1,
+        "min_zone": 3,
+        "weight": 7,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 45,
+                "deltas": {"defense": -12, "population": -4, "morale": -8},
+                "narration_hint": "Autonomous combat drones swarm the settlement in formation. Cold, precise, lethal.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"defense": -8, "scrap": 20},
+                "narration_hint": "After repelling the drone swarm, your engineers salvage their components.",
+            },
+            {
+                "weight": 25,
+                "deltas": {"defense": -5, "scrap": 30, "gold": 5},
+                "narration_hint": "Your Radio Tower jams the swarm's coordination. Easy pickings after that.",
+            },
+        ],
+    },
+    {
+        "id": "underground_market",
+        "name": {"en": "Underground Market", "ru": "Подпольный рынок"},
+        "category": "trade",
+        "min_turn": 1,
+        "min_zone": 3,
+        "weight": 6,
+        "conditions": lambda s: s.gold >= 5,
+        "outcomes": [
+            {
+                "weight": 40,
+                "deltas": {"gold": -5, "scrap": 35, "food": 15},
+                "narration_hint": "An underground market appears in the ruins. Prices are steep but selection is unmatched.",
+            },
+            {
+                "weight": 35,
+                "deltas": {"gold": 12, "morale": -3},
+                "narration_hint": "You sell scavenged pre-Collapse tech at the black market for a hefty profit.",
+            },
+            {
+                "weight": 25,
+                "deltas": {"gold": -3, "defense": 8, "scrap": 10},
+                "narration_hint": "Military hardware at the underground market. Expensive but worth every coin.",
+            },
+        ],
+    },
+    {
+        "id": "remnant_expedition",
+        "name": {"en": "Remnant Expedition", "ru": "Экспедиция Осколков"},
+        "category": "exploration",
+        "min_turn": 1,
+        "min_zone": 3,
+        "weight": 6,
+        "conditions": lambda s: s.remnants_rep >= 10,
+        "outcomes": [
+            {
+                "weight": 40,
+                "deltas": {"scrap": 25, "morale": 5, "gold": 5},
+                "narration_hint": "Remnant scholars invite you on an expedition to a pre-Collapse research facility.",
+            },
+            {
+                "weight": 35,
+                "deltas": {"scrap": 15, "defense": 5, "population": -2},
+                "narration_hint": "The expedition finds valuable tech but the facility's traps claim two settlers.",
+            },
+            {
+                "weight": 25,
+                "deltas": {"morale": 10, "food": 10},
+                "narration_hint": "The Remnants share their hydroponics knowledge. Your farms will never be the same.",
+            },
+        ],
+    },
+
+    # ==== ADDITIONAL ZONE 4 EVENTS ====
+    {
+        "id": "data_heist",
+        "name": {"en": "Network Data Heist", "ru": "Кража данных Сети"},
+        "category": "lore",
+        "min_turn": 1,
+        "min_zone": 4,
+        "weight": 6,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 35,
+                "deltas": {"gold": 20, "defense": -10, "morale": 5},
+                "narration_hint": "Your hackers breach a Network data vault. The information is worth a fortune.",
+            },
+            {
+                "weight": 35,
+                "deltas": {"gold": 10, "scrap": 20, "population": -3},
+                "narration_hint": "The data heist succeeds but Network countermeasures take their toll.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"defense": -15, "morale": -10, "gold": -5},
+                "narration_hint": "The heist fails. The Network retaliates with a targeted strike on your settlement.",
+            },
+        ],
+    },
+    {
+        "id": "warlord_alliance",
+        "name": {"en": "Warlord Alliance", "ru": "Альянс полевых командиров"},
+        "category": "combat",
+        "min_turn": 1,
+        "min_zone": 4,
+        "weight": 7,
+        "conditions": lambda s: s.raiders_rep >= 20,
+        "outcomes": [
+            {
+                "weight": 40,
+                "deltas": {"defense": 15, "morale": 8, "food": -15},
+                "narration_hint": "Raider warlords offer a temporary alliance. Their fighters bolster your walls.",
+            },
+            {
+                "weight": 35,
+                "deltas": {"scrap": 20, "gold": 8, "morale": -5},
+                "narration_hint": "The warlords bring tribute. Your people are uneasy about these new allies.",
+            },
+            {
+                "weight": 25,
+                "deltas": {"defense": -10, "food": -10, "population": -3},
+                "narration_hint": "The alliance was a trap. Raiders attack from inside while their allies hit the walls.",
+            },
+        ],
+    },
+
+    # ==== ZONE 5 EVENTS ====
+    {
+        "id": "the_reckoning",
+        "name": {"en": "The Reckoning", "ru": "Расплата"},
+        "category": "combat",
+        "min_turn": 1,
+        "min_zone": 5,
+        "weight": 7,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 50,
+                "deltas": {"defense": -25, "population": -10, "food": -20, "morale": -15},
+                "narration_hint": "Every faction unites against you. The wasteland itself seems to fight back.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"defense": -15, "population": -5, "gold": -15},
+                "narration_hint": "Mercenary armies demand everything you have. Surrender or die.",
+            },
+            {
+                "weight": 20,
+                "deltas": {"morale": 20, "defense": 10, "gold": 30, "scrap": 30},
+                "narration_hint": "You emerge victorious from the greatest battle the wasteland has seen.",
+            },
+        ],
+    },
+    {
+        "id": "paradise_found",
+        "name": {"en": "Paradise Found", "ru": "Найденный рай"},
+        "category": "exploration",
+        "min_turn": 1,
+        "min_zone": 5,
+        "weight": 5,
+        "conditions": lambda s: s.level >= 25,
+        "outcomes": [
+            {
+                "weight": 40,
+                "deltas": {"food": 40, "morale": 15, "population": 10, "gold": 15},
+                "narration_hint": "An untouched valley, hidden from the world since the Collapse. A true paradise.",
+            },
+            {
+                "weight": 35,
+                "deltas": {"food": 25, "scrap": 30, "gold": 10},
+                "narration_hint": "The valley has been picked over by someone before you. Still, remarkable finds.",
+            },
+            {
+                "weight": 25,
+                "deltas": {"food": 15, "population": -5, "morale": -10, "scrap": 40, "gold": 20},
+                "narration_hint": "Paradise was guarded. Automated defenses exact a heavy price for entry.",
+            },
+        ],
+    },
+    {
+        "id": "machine_god",
+        "name": {"en": "The Machine God", "ru": "Машинный бог"},
+        "category": "lore",
+        "min_turn": 1,
+        "min_zone": 5,
+        "weight": 5,
+        "conditions": _always,
+        "outcomes": [
+            {
+                "weight": 35,
+                "deltas": {"defense": 20, "scrap": 40, "morale": -15},
+                "narration_hint": "A Thinking Machine of immense power offers allegiance. Your people are terrified.",
+            },
+            {
+                "weight": 35,
+                "deltas": {"gold": 25, "morale": 10, "defense": 5},
+                "narration_hint": "You negotiate with the Machine God. It provides resources in exchange for data about human settlement patterns.",
+            },
+            {
+                "weight": 30,
+                "deltas": {"defense": -20, "population": -8, "scrap": -20},
+                "narration_hint": "The Machine God's offer was deception. Your systems are compromised, your people scattered.",
+            },
+        ],
+    },
 ]
 
 
@@ -466,15 +928,11 @@ EVENT_CATALOG: list[dict] = [
 # ---------------------------------------------------------------------------
 
 
-def _event_probability(turn_number: int) -> float:
+def _event_probability(turn_number: int, zone: int) -> float:
     """Return the probability [0.0, 1.0] that an event fires this turn."""
-    if turn_number <= 5:
-        return 0.20
-    if turn_number <= 20:
-        return 0.35
-    if turn_number <= 40:
-        return 0.50
-    return 0.65
+    base = 0.25 + turn_number * 0.005  # slow ramp
+    base = min(base, 0.40 + zone * 0.05)  # zone bonus
+    return min(base, 0.75)  # hard cap
 
 
 def roll_random_event(
@@ -488,14 +946,18 @@ def roll_random_event(
 
         {"id": str, "name": str, "deltas": dict, "narration_hint": str}
     """
+    zone = state.zone
+
     # Step 1: probability gate
-    if random.random() > _event_probability(turn_number):
+    if random.random() > _event_probability(turn_number, zone):
         return None
 
-    # Step 2: filter eligible events
+    # Step 2: filter eligible events (turn gate + zone gate + conditions)
     eligible: list[dict] = []
     for event in EVENT_CATALOG:
         if turn_number < event["min_turn"]:
+            continue
+        if zone < event.get("min_zone", 1):
             continue
         condition_fn = event.get("conditions", _always)
         try:
@@ -518,9 +980,50 @@ def roll_random_event(
     outcome_weights = [o["weight"] for o in outcomes]
     chosen_outcome = random.choices(outcomes, weights=outcome_weights, k=1)[0]
 
+    # Step 5: apply zone difficulty multiplier to negative deltas
+    from bot.engine.progression import get_zone_difficulty_multiplier
+
+    multiplier = get_zone_difficulty_multiplier(zone)
+    final_deltas: dict[str, int] = {}
+    for k, v in chosen_outcome["deltas"].items():
+        if v < 0 and multiplier != 1.0:
+            final_deltas[k] = ceil(v * multiplier)  # ceil preserves negative direction
+        else:
+            final_deltas[k] = v
+
+    # Step 6: apply skill modifiers to event deltas
+    from bot.engine.skills import get_skill_effect
+
+    category = chosen_event.get("category", "")
+
+    # Skill: Thick Skin — reduce defense losses from events by X%
+    thick_skin_pct = get_skill_effect(state, "thick_skin")
+    if thick_skin_pct > 0 and "defense" in final_deltas and final_deltas["defense"] < 0:
+        reduced = ceil(final_deltas["defense"] * (1.0 - thick_skin_pct / 100.0))
+        final_deltas["defense"] = min(reduced, -1) if final_deltas["defense"] < 0 else reduced
+
+    # Skill: Raider's Instinct — reduce pop loss from combat events
+    if category == "combat":
+        ri_reduction = int(get_skill_effect(state, "raiders_instinct"))
+        if ri_reduction > 0 and "population" in final_deltas and final_deltas["population"] < 0:
+            final_deltas["population"] = min(0, final_deltas["population"] + ri_reduction)
+
+    # Skill: Field Medic — reduce pop loss from any event
+    fm_reduction = int(get_skill_effect(state, "field_medic"))
+    if fm_reduction > 0 and "population" in final_deltas and final_deltas["population"] < 0:
+        final_deltas["population"] = min(0, final_deltas["population"] + fm_reduction)
+
+    # Skill: Caravan Network — boost positive deltas from trade events
+    if category == "trade":
+        cn_pct = get_skill_effect(state, "caravan_network")
+        if cn_pct > 0:
+            for k, v in final_deltas.items():
+                if v > 0:
+                    final_deltas[k] = ceil(v * (1.0 + cn_pct / 100.0))
+
     return {
         "id": chosen_event["id"],
         "name": chosen_event["name"].get("en", chosen_event["id"]),
-        "deltas": dict(chosen_outcome["deltas"]),
+        "deltas": final_deltas,
         "narration_hint": chosen_outcome["narration_hint"],
     }

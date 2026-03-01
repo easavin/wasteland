@@ -10,7 +10,9 @@ from google import genai
 from google.genai.types import GenerateContentConfig, Part, ThinkingConfig
 
 from bot.config import settings
-from bot.narrator.lore import LORE_SUMMARY, FACTION_LORE
+from bot.engine.classes import PLAYER_CLASSES
+from bot.engine.skills import SKILLS
+from bot.narrator.lore import LORE_SUMMARY, FACTION_LORE, CLASS_LORE, ZONE_LORE
 from bot.narrator.profiler import PlayerProfiler
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,8 @@ class GeminiNarrator:
         is_premium: bool,
         build_error: str | None = None,
         comm_profile: dict | None = None,
+        xp_earned: int = 0,
+        new_levels: list | None = None,
     ) -> str:
         """Generate narrative text for a completed turn."""
         word_limit = 200 if is_premium else 100
@@ -49,16 +53,39 @@ class GeminiNarrator:
         # Build style description from comm profile
         style_desc = self.profiler.get_style_description(comm_profile or {})
 
+        # Class info for narrator context
+        cls_info = PLAYER_CLASSES.get(state.player_class, {})
+        cls_name_en = cls_info.get("name", {}).get("en", "Survivor")
+        cls_lore = CLASS_LORE.get(state.player_class, "")
+        zone_lore = ZONE_LORE.get(state.zone, "")
+
+        # Summarize learned skills for narrator flavor
+        skills_desc = ""
+        if state.skills:
+            learned = []
+            for sid, rank in state.skills.items():
+                spec = SKILLS.get(sid)
+                if spec and rank > 0:
+                    learned.append(f"{spec['name']['en']} (rank {rank})")
+            if learned:
+                skills_desc = "Learned skills: " + ", ".join(learned)
+
         system_prompt = f"""You are the Narrator of Wasteland Chronicles, a post-apocalyptic
-settlement survival game. You speak as a weathered survivor chronicling events
+settlement RPG. You speak as a weathered survivor chronicling events
 through a crackling radio broadcast.
 
 {LORE_SUMMARY}
+
+PLAYER CLASS: {cls_name_en} (Level {state.level}, Zone {state.zone})
+{cls_lore}
+{f"ZONE: " + zone_lore if zone_lore else ""}
+{skills_desc}
 
 NARRATOR VOICE:
 - Gritty, sardonic, occasionally darkly humorous
 - References the old world with bitter nostalgia
 - Adapts to player behavior and communication style
+- Acknowledge the player's class identity and growing reputation when relevant
 
 PLAYER STYLE PROFILE:
 - Aggression: {state.style_aggression:.1f}/1.0
@@ -74,10 +101,12 @@ Keep response to approximately {word_limit} words.
 
 CRITICAL RULES:
 - Never break character
-- Never reference game mechanics directly (no "+10 food")
+- Never reference game mechanics directly (no "+10 food" or "XP")
 - Weave resource changes into narrative naturally
 - End with a brief hint about what might come next
-- Match the player's communication style and vocabulary level"""
+- Match the player's communication style and vocabulary level
+- If the player leveled up, weave a sense of growing reputation/power into the narrative
+- Reference the zone's dangers naturally (higher zones = more hostile territory)"""
 
         # Build context from narrator memory
         memory_text = ""
@@ -85,11 +114,17 @@ CRITICAL RULES:
             memory_text = "\n\nPrevious broadcasts:\n" + "\n".join(state.narrator_memory[-5:])
 
         # Build turn description
-        turn_desc = f"""TURN {state.turn_number}/50:
+        level_up_text = ""
+        if new_levels:
+            level_up_text = f"\nLEVEL UP! Player reached level {new_levels[-1]}. Weave a sense of growing power/reputation into the narrative."
+
+        turn_desc = f"""WEEK {state.turn_number}:
 
 Settlement: {state.settlement_name}
+Class: {cls_name_en} | Level {state.level} | Zone {state.zone}
 Action taken: {action}{f' ({target})' if target else ''}
 {f'Build error: {build_error}' if build_error else ''}
+{level_up_text}
 
 Resource changes this turn:
 {json.dumps({k: v for k, v in deltas.items() if v != 0}, indent=2)}
@@ -98,10 +133,12 @@ Current state after changes:
 - Population: {state.population}
 - Food: {state.food}
 - Scrap: {state.scrap}
+- Gold: {state.gold}
 - Morale: {state.morale}/100
 - Defense: {state.defense}/100
 - Buildings: {json.dumps(state.buildings)}
-- Starvation counter: {state.food_zero_turns}/2
+- Skills: {json.dumps(state.skills) if state.skills else "none"}
+- Starvation counter: {state.food_zero_turns}
 
 Faction relations:
 - Raiders: {state.raiders_rep} ({self._rep_label(state.raiders_rep)})
@@ -114,8 +151,8 @@ Faction relations:
 Random event occurred: {event['name']}
 Event hint: {event.get('narration_hint', '')}"""
 
-        if state.status in ("won", "lost"):
-            turn_desc += f"\n\nGAME OUTCOME: {state.status.upper()}"
+        if state.status == "lost":
+            turn_desc += "\n\nGAME OUTCOME: DEFEAT. The settlement has fallen."
 
         prompt = turn_desc + memory_text
 
@@ -140,36 +177,44 @@ Event hint: {event.get('narration_hint', '')}"""
         settlement_name: str,
         language: str,
         player_name: str,
+        player_class: str = "",
     ) -> str:
         """Generate a welcome narrative for a new game."""
         lang_name = "Russian" if language == "ru" else "English"
+        cls_info = PLAYER_CLASSES.get(player_class, {})
+        cls_name = cls_info.get("name", {}).get("en", "survivor")
+        cls_desc = cls_info.get("description", {}).get("en", "")
+        cls_lore = CLASS_LORE.get(player_class, "")
 
         system_instruction = f"""You are the Narrator of Wasteland Chronicles, a post-apocalyptic
-settlement survival game. You speak as a weathered survivor broadcasting on a crackling shortwave radio.
+settlement RPG. You speak as a weathered survivor broadcasting on a crackling shortwave radio.
 
 {LORE_SUMMARY}
 
 CRITICAL RULES — NEVER BREAK THESE:
 - Write atmospheric narrative storytelling — no raw stats, no UI instructions
-- NEVER include lines like "population: X" or "food: Y" or "turn 1/50"
+- NEVER include lines like "population: X" or "food: Y" or "level 1"
 - NEVER list buttons or mention game UI
 - Practical guidance must come from the Navigator's voice, as advice from a survivor
 - Write ONLY in {lang_name}"""
 
         prompt = f"""Write a 250-320 word opening scene for a new survivor arriving at their future settlement.
 
-The survivor's name is {player_name}. They have led 50 desperate people here after weeks of wandering.
+The survivor's name is {player_name}. They are a {cls_name} — {cls_desc}
+{cls_lore}
+
+They have led 50 desperate people here after weeks of wandering.
 The settlement will be called "{settlement_name}" — a ruin of crumbling concrete, overgrown lots, rusted steel.
 
 You are "the Navigator" — a weathered voice on a shortwave radio who has been watching this frequency,
 waiting for someone to make contact. You just picked up {player_name}'s signal.
 
 Structure in this order:
-1. OPENING (3-4 sentences): The shortwave crackles to life — you (the Navigator) make first contact with {player_name}. Describe what you see from your vantage point: the ruin they've arrived at, the dusk light, the exhausted 50.
+1. OPENING (3-4 sentences): The shortwave crackles to life — you (the Navigator) make first contact with {player_name}. Describe what you see from your vantage point: the ruin they've arrived at, the dusk light, the exhausted 50. Acknowledge their background as a {cls_name} — the Navigator has heard of them.
 
 2. THE WORLD (3-4 sentences): Paint the dangers — Raiders who smell weakness, the Trader Guild who'll bleed them dry, the Remnants with their strange knowledge. Make it vivid and specific, not a list.
 
-3. PRACTICAL GUIDANCE (4-5 sentences): The Navigator shares hard-won survival wisdom naturally, as advice between survivors. Work these into the narrative:
+3. PRACTICAL GUIDANCE (4-5 sentences): The Navigator shares hard-won survival wisdom naturally, as advice between survivors. Tailor advice to their class strengths. Work these into the narrative:
    - Food runs out fast — they need farms, and soon
    - The ruins nearby are full of useful scrap — worth sending scouts
    - Walls won't build themselves, and Raiders test the weak
@@ -177,7 +222,7 @@ Structure in this order:
    - Sometimes the best move is to let people rest and recover
    - Just talk — say what you want to do in plain words, the Navigator will understand
 
-4. CLOSING (1-2 sentences): End with a direct question to {player_name} — draw them into their first decision. Make it feel urgent but not overwhelming.
+4. CLOSING (1-2 sentences): End with a direct question to {player_name} — draw them into their first decision. Make it feel urgent but not overwhelming. Reference their {cls_name} skills.
 
 Tone: sardonic, world-weary, but genuinely invested in this survivor making it.
 The Navigator has seen settlements rise and fall. This time feels different — maybe.
@@ -208,8 +253,8 @@ Language: {lang_name} ONLY."""
 "{text}"
 
 Valid actions and their targets:
-- build — MUST have a target: farm, watchtower, workshop, barracks, shelter, clinic
-  Examples: "build a farm" → action=build, target=farm; "I want to construct a watchtower" → action=build, target=watchtower
+- build — MUST have a target: farm, watchtower, workshop, barracks, shelter, clinic, market, radio_tower, armory, vault
+  Examples: "build a farm" → action=build, target=farm; "I want to construct a watchtower" → action=build, target=watchtower; "build a market" → action=build, target=market
 - explore — no target needed
 - trade — no target needed
 - defend — no target needed
@@ -262,27 +307,49 @@ IMPORTANT: For "build", always extract the building type from the message as the
         if state.narrator_memory:
             memory_text = "\n\nRecent events (use these to maintain narrative continuity):\n" + "\n".join(state.narrator_memory[-5:])
 
+        cls_info = PLAYER_CLASSES.get(state.player_class, {})
+        cls_name = cls_info.get("name", {}).get("en", "Survivor")
+        zone_lore = ZONE_LORE.get(state.zone, "")
+
+        # Summarize learned skills
+        skills_desc = "none"
+        if state.skills:
+            learned = []
+            for sid, rank in state.skills.items():
+                spec = SKILLS.get(sid)
+                if spec and rank > 0:
+                    learned.append(f"{spec['name']['en']} (rank {rank})")
+            if learned:
+                skills_desc = ", ".join(learned)
+
         prompt = f"""The player said: "{player_message}"
 
 CURRENT SETTLEMENT STATE — use this to give informed, specific answers:
 - Settlement: {state.settlement_name}
-- Week: {state.turn_number}/50
+- Class: {cls_name} | Level {state.level} | Zone {state.zone}
+- Week: {state.turn_number}
 - Population: {state.population} survivors
 - Food: {state.food} (consumed each week — runs out = starvation)
 - Scrap: {state.scrap} (building material and trade currency)
+- Gold: {state.gold} (rare currency for special purchases via /shop)
 - Morale: {state.morale}/100
 - Defense: {state.defense}/100
 - Buildings: {buildings_desc}
+- Learned skills: {skills_desc}
+- Skill points available: {state.skill_points}
 - Faction relations: Raiders {state.raiders_rep:+d} ({self._rep_label(state.raiders_rep)}), Traders {state.traders_rep:+d} ({self._rep_label(state.traders_rep)}), Remnants {state.remnants_rep:+d} ({self._rep_label(state.remnants_rep)})
+{f"ZONE CONTEXT: " + zone_lore if zone_lore else ""}
 {memory_text}
 
 WHAT THE PLAYER CAN DO (reference naturally when relevant):
-- Build structures: farm (food), watchtower (defense), workshop (scrap), barracks (defense), shelter (morale), clinic (morale + population)
-- Send scouts to explore the ruins for scrap
-- Trade scrap for food with passing caravans
+- Build structures: farm (food), watchtower (defense), workshop (scrap), barracks (defense), shelter (morale), clinic (morale + population), market (gold, L3+), radio tower (defense, L7+), armory (defense, L12+), vault (gold, L20+)
+- Send scouts to explore the ruins for scrap and gold
+- Trade scrap for food and gold with passing caravans
 - Fortify defenses against raids
 - Negotiate with factions: Raiders, Trader Guild, Remnants
 - Let the settlement rest to recover morale
+- Spend gold at the shop (/shop): emergency rations, mercenaries, faction gifts, recruit settlers, scrap shipment, skill respec
+- Invest skill points in specializations (/skills): survival, economy, military, social categories
 
 This message is NOT a game command — it's a question, observation, or comment.
 Respond in character as the Navigator. Be SPECIFIC and USEFUL:
@@ -290,6 +357,9 @@ Respond in character as the Navigator. Be SPECIFIC and USEFUL:
 - If they ask about factions — share what you know from lore, their current relations
 - If they ask "what can I do?" — describe their options as practical survival advice
 - If they ask about the world — draw from the lore, be vivid and detailed
+- If they ask about their class or level — reference their growing reputation
+- If they ask about skills — describe their learned abilities and available skill points
+- If they ask about gold/shop — mention what they can buy and how much they have
 Always ground your answer in the actual settlement state and lore.
 End with a natural nudge toward action — suggest something relevant to their situation.
 
@@ -327,7 +397,7 @@ End with a natural nudge toward action — suggest something relevant to their s
         prompt = """Transcribe this voice message from a post-apocalyptic strategy game player.
 Extract their intended game command.
 
-Valid commands: build [building], explore, trade, defend, diplomacy [faction], rest, status
+Valid commands: build [building: farm/watchtower/workshop/barracks/shelter/clinic/market/radio_tower/armory/vault], explore, trade, defend, diplomacy [faction: raiders/traders/remnants], rest, status
 
 Respond with ONLY valid JSON, no markdown:
 {"transcription": "full text heard", "action": "command_name_or_null", "target": "target_or_null"}"""

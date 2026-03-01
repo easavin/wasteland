@@ -52,11 +52,13 @@ export const gameStates = pgTable(
     status: varchar("status", { length: 20 }).notNull().default("active"),
     turnNumber: integer("turn_number").notNull().default(0),
     settlementName: varchar("settlement_name", { length: 100 }).notNull(),
+    playerClass: varchar("player_class", { length: 20 }).notNull().default(""),
     population: integer("population").notNull().default(50),
     food: integer("food").notNull().default(100),
     scrap: integer("scrap").notNull().default(80),
     morale: integer("morale").notNull().default(70),
     defense: integer("defense").notNull().default(30),
+    gold: integer("gold").notNull().default(0),
     foodZeroTurns: integer("food_zero_turns").notNull().default(0),
     raidersRep: integer("raiders_rep").notNull().default(0),
     tradersRep: integer("traders_rep").notNull().default(0),
@@ -68,6 +70,13 @@ export const gameStates = pgTable(
     buildings: jsonb("buildings").notNull().default({}),
     activeEffects: jsonb("active_effects").notNull().default([]),
     narratorMemory: jsonb("narrator_memory").notNull().default([]),
+    xp: integer("xp").notNull().default(0),
+    level: integer("level").notNull().default(1),
+    skillPoints: integer("skill_points").notNull().default(0),
+    skills: jsonb("skills").notNull().default({}),
+    milestones: jsonb("milestones").notNull().default([]),
+    zone: integer("zone").notNull().default(1),
+    inventory: jsonb("inventory").notNull().default([]),
     startedAt: timestamp("started_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -108,6 +117,11 @@ export const turnHistory = pgTable(
     narrationLang: varchar("narration_lang", { length: 5 })
       .notNull()
       .default("en"),
+    xpEarned: integer("xp_earned").notNull().default(0),
+    goldBefore: integer("gold_before").notNull().default(0),
+    goldDelta: integer("gold_delta").notNull().default(0),
+    levelBefore: integer("level_before").notNull().default(1),
+    levelAfter: integer("level_after").notNull().default(1),
     voiceInput: boolean("voice_input").notNull().default(false),
     voiceText: text("voice_text"),
     createdAt: timestamp("created_at", { withTimezone: true })

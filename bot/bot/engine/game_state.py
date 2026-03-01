@@ -22,15 +22,25 @@ class GameState:
     turn_number: int = 0
     settlement_name: str = "Unnamed Settlement"
 
+    # Player class
+    player_class: str = ""  # scavenger | warden | trader | diplomat | medic
+
     # Resources
     population: int = 50
     food: int = 100
     scrap: int = 80
     morale: int = 70   # 0-100
     defense: int = 30   # 0-100
+    gold: int = 0
 
     # Starvation tracker
     food_zero_turns: int = 0
+
+    # Progression
+    xp: int = 0
+    level: int = 1
+    skill_points: int = 0
+    zone: int = 1
 
     # Faction reputations (-100 to +100)
     raiders_rep: int = 0
@@ -47,6 +57,9 @@ class GameState:
     buildings: dict[str, int] = field(default_factory=dict)
     active_effects: list[dict] = field(default_factory=list)
     narrator_memory: list[str] = field(default_factory=list)
+    skills: dict[str, int] = field(default_factory=dict)
+    milestones: list[str] = field(default_factory=list)
+    inventory: list[dict] = field(default_factory=list)
 
     # Timestamps (kept as strings; only used for display / logging)
     started_at: str | None = None
@@ -71,12 +84,18 @@ class GameState:
             "status",
             "turn_number",
             "settlement_name",
+            "player_class",
             "population",
             "food",
             "scrap",
             "morale",
             "defense",
+            "gold",
             "food_zero_turns",
+            "xp",
+            "level",
+            "skill_points",
+            "zone",
             "raiders_rep",
             "traders_rep",
             "remnants_rep",
@@ -94,7 +113,8 @@ class GameState:
                 data[uid_key] = str(data[uid_key])
 
         # JSONB columns may already be parsed by asyncpg or may be strings.
-        for json_key in ("buildings", "active_effects", "narrator_memory"):
+        for json_key in ("buildings", "active_effects", "narrator_memory",
+                         "skills", "milestones", "inventory"):
             raw = row.get(json_key)
             if raw is None:
                 continue
@@ -125,16 +145,18 @@ class GameState:
             "scrap": self.scrap,
             "morale": self.morale,
             "defense": self.defense,
+            "gold": self.gold,
         }
 
     def clamp_resources(self) -> None:
         """Enforce hard boundaries on bounded resources."""
         self.morale = max(0, min(100, self.morale))
         self.defense = max(0, min(100, self.defense))
-        # Population and food may not go below zero.
+        # Population, food, scrap, and gold may not go below zero.
         self.population = max(0, self.population)
         self.food = max(0, self.food)
         self.scrap = max(0, self.scrap)
+        self.gold = max(0, self.gold)
         # Faction reps clamped -100..+100
         self.raiders_rep = max(-100, min(100, self.raiders_rep))
         self.traders_rep = max(-100, min(100, self.traders_rep))
@@ -152,6 +174,9 @@ class TurnResult:
 
     narration: str
     new_state: GameState
-    outcome: str  # "continue" | "won" | "lost"
+    outcome: str  # "continue" | "lost"
     event: dict | None
     deltas: dict[str, int]
+    xp_earned: int = 0
+    new_levels: list[int] = field(default_factory=list)
+    new_milestones: list[str] = field(default_factory=list)

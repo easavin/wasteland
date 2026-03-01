@@ -12,8 +12,10 @@ from bot.config import settings
 from bot.db.queries.players import get_player_by_telegram_id, check_and_consume_turn
 from bot.db.queries.game_states import get_active_game, end_game, create_game
 from bot.db.queries.analytics import log_event
+from bot.engine.classes import PLAYER_CLASSES, get_starting_resources, get_starting_rep_overrides, get_starvation_threshold
 from bot.engine.factions import get_faction_status
 from bot.engine.game_state import GameState
+from bot.engine.progression import xp_progress_in_level
 from bot.engine.turn_processor import process_turn
 from bot.handlers.payment import send_premium_invoice
 from bot.i18n import get_text
@@ -82,6 +84,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     await query.answer()
     data = query.data or ""
+
+    # Route class selection to the start handler
+    if data.startswith("class:"):
+        from bot.handlers.start import handle_class_selection
+        await handle_class_selection(update, context)
+        return
+
+    # Route skill upgrades to the skills handler
+    if data.startswith("skill:"):
+        from bot.handlers.skills import handle_skill_callback
+        await handle_skill_callback(update, context)
+        return
+
+    # Route shop purchases to the shop handler
+    if data.startswith("shop:"):
+        from bot.handlers.shop import handle_shop_callback
+        await handle_shop_callback(update, context)
+        return
 
     pool = context.bot_data["db_pool"]
     player = await get_player_by_telegram_id(pool, query.from_user.id)
@@ -180,29 +200,37 @@ async def _execute_turn(
         delta_line = " | ".join(
             f"{k}: {'+' if v > 0 else ''}{v}"
             for k, v in result.deltas.items()
-            if k in ("population", "food", "scrap", "morale", "defense") and v != 0
+            if k in ("population", "food", "scrap", "morale", "defense", "gold") and v != 0
         )
         if delta_line:
             response_parts.append(f"\n📊 {delta_line}")
 
+    # XP earned
+    if result.xp_earned > 0:
+        response_parts.append(f"✨ +{result.xp_earned} XP")
+
+    # Level-up notifications
+    if result.new_levels:
+        for lvl in result.new_levels:
+            response_parts.append(f"\n🎉 *LEVEL UP! You reached level {lvl}!*")
+
     # Current resources
     s = result.new_state
+    cls_info = PLAYER_CLASSES.get(s.player_class, {})
+    cls_emoji = cls_info.get("emoji", "")
+    xp_in, xp_needed = xp_progress_in_level(s)
+
     response_parts.append(
-        f"\n👥{s.population} 🌾{s.food} 🔩{s.scrap} 😊{s.morale} 🛡{s.defense}"
-        f"  (Week {s.turn_number}/50)"
+        f"\n{cls_emoji} L{s.level} ({xp_in}/{xp_needed} XP) | Zone {s.zone}"
+        f"\n👥{s.population} 🌾{s.food} 🔩{s.scrap} 💰{s.gold}"
+        f" 😊{s.morale} 🛡{s.defense}"
+        f"  (Week {s.turn_number})"
     )
 
     text = "\n".join(response_parts)
 
     # Handle game outcome
-    if result.outcome == "won":
-        text += "\n\n" + get_text(
-            "game_won", lang,
-            settlement=s.settlement_name,
-            population=s.population,
-            morale=s.morale,
-        )
-    elif result.outcome == "lost":
+    if result.outcome == "lost":
         text += "\n\n" + get_text(
             "game_lost", lang,
             settlement=s.settlement_name,
@@ -217,7 +245,7 @@ async def _execute_turn(
 # ------------------------------------------------------------------
 
 async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Abandon current game and start fresh with full narrator onboarding."""
+    """Abandon current game and start fresh with class selection."""
     pool = context.bot_data["db_pool"]
     user = update.effective_user
     player = await get_player_by_telegram_id(pool, user.id)
@@ -232,51 +260,15 @@ async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     game_row = await get_active_game(pool, player_id)
     if game_row:
         await end_game(pool, str(game_row["id"]), "abandoned")
+        await update.message.reply_text(get_text("new_game_abandoned", lang))
 
-    # Create new game
-    settlement = get_text(
-        "settlement_default_name", lang,
-        name=user.first_name or "Survivor",
+    # Present class selection (same as /start with no active game)
+    text = get_text("class_selection", lang)
+    await update.message.reply_text(
+        text,
+        reply_markup=_class_keyboard(lang),
+        parse_mode="Markdown",
     )
-    game_row = await create_game(pool, player_id, settlement)
-    state = GameState.from_db_row(game_row)
-    await log_event(pool, player_id, "game_start", {"game_id": str(state.id)})
-
-    # Message 1: narrator intro (atmospheric story, no buttons)
-    narrator = context.bot_data.get("narrator")
-    narration = None
-    if narrator:
-        try:
-            narration = await narrator.generate_onboarding(
-                settlement_name=settlement,
-                language=lang,
-                player_name=user.first_name or "Survivor",
-            )
-        except Exception:
-            logger.exception("Narrator onboarding failed on new game")
-
-    intro_text = narration or get_text(
-        "welcome", lang,
-        name=user.first_name or "Survivor",
-        settlement=settlement,
-    )
-
-    # Append mini status to the intro so the player sees resources at a glance
-    status = _format_mini_status(state, lang)
-    full_text = f"{intro_text}\n\n{status}"
-
-    try:
-        await update.message.reply_text(
-            full_text,
-            reply_markup=_status_keyboard(lang),
-            parse_mode="Markdown",
-        )
-    except BadRequest:
-        await update.message.reply_text(
-            full_text,
-            reply_markup=_status_keyboard(lang),
-        )
-
 
 
 # ------------------------------------------------------------------
@@ -285,13 +277,21 @@ async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 def _format_full_status(state: GameState, lang: str) -> str:
     """Format a detailed settlement status message."""
+    cls_info = PLAYER_CLASSES.get(state.player_class, {})
+    cls_emoji = cls_info.get("emoji", "")
+    cls_name = cls_info.get("name", {}).get(lang, state.player_class.title() if state.player_class else "Unknown")
+    xp_in, xp_needed = xp_progress_in_level(state)
+
     lines = [
-        get_text("status_header", lang, settlement=state.settlement_name, turn=state.turn_number),
+        get_text("status_header_rpg", lang, settlement=state.settlement_name, turn=state.turn_number),
+        f"{cls_emoji} *{cls_name}* — ⭐ Level {state.level} ({xp_in}/{xp_needed} XP)",
+        f"🗺 Zone {state.zone}",
         "",
         get_text("status_resources", lang),
         f"  👥 Population: {state.population}",
         f"  🌾 Food: {state.food} {_bar(state.food, 200)}",
         f"  🔩 Scrap: {state.scrap}",
+        f"  💰 Gold: {state.gold}",
         f"  😊 Morale: {state.morale}/100 {_bar(state.morale, 100)}",
         f"  🛡 Defense: {state.defense}/100 {_bar(state.defense, 100)}",
         "",
@@ -311,9 +311,14 @@ def _format_full_status(state: GameState, lang: str) -> str:
         lines.append("")
         lines.append(get_text("status_no_buildings", lang))
 
+    if state.skill_points > 0:
+        lines.append("")
+        lines.append(f"🔮 *{state.skill_points} skill point(s) available!* Use /skills")
+
+    starvation_threshold = get_starvation_threshold(state.player_class)
     if state.food_zero_turns > 0:
         lines.append("")
-        lines.append(f"⚠️ STARVATION: {state.food_zero_turns}/2 turns without food!")
+        lines.append(f"⚠️ STARVATION: {state.food_zero_turns}/{starvation_threshold} turns without food!")
 
     return "\n".join(lines)
 
@@ -339,9 +344,30 @@ def _premium_keyboard(lang: str) -> InlineKeyboardMarkup:
     ]])
 
 
+def _class_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Build a keyboard with one button per player class (reused in /newgame)."""
+    from bot.engine.classes import PLAYER_CLASSES
+    buttons = []
+    for class_id, cls_info in PLAYER_CLASSES.items():
+        emoji = cls_info["emoji"]
+        name = cls_info["name"].get(lang, cls_info["name"]["en"])
+        buttons.append([
+            InlineKeyboardButton(
+                f"{emoji} {name}",
+                callback_data=f"class:{class_id}",
+            ),
+        ])
+    return InlineKeyboardMarkup(buttons)
+
+
 def _format_mini_status(state: GameState, lang: str) -> str:
     """Compact one-line resource bar."""
+    cls_info = PLAYER_CLASSES.get(state.player_class, {})
+    cls_emoji = cls_info.get("emoji", "")
+    xp_in, xp_needed = xp_progress_in_level(state)
+
     return (
-        f"👥{state.population} 🌾{state.food} 🔩{state.scrap} "
-        f"😊{state.morale} 🛡{state.defense}  (Week {state.turn_number}/50)"
+        f"{cls_emoji} L{state.level} ({xp_in}/{xp_needed} XP)"
+        f"\n👥{state.population} 🌾{state.food} 🔩{state.scrap} 💰{state.gold}"
+        f" 😊{state.morale} 🛡{state.defense}  (Week {state.turn_number})"
     )

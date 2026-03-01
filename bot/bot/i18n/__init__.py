@@ -16,16 +16,16 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Welcome to the Wasteland, {name}.\n\n"
             "The world ended. What remained is dust, rust, and desperate survivors.\n"
             "You founded *{settlement}* -- a fragile settlement on the edge of nothing.\n\n"
-            "50 turns. That is all you have to build something that endures.\n"
-            "Gather resources, raise walls, forge alliances -- or perish.\n\n"
+            "Gather resources, raise walls, forge alliances -- or perish.\n"
+            "Level up, grow stronger, conquer new zones.\n\n"
             "Your people are watching. Lead them."
         ),
         "ru": (
             "Добро пожаловать в Пустошь, {name}.\n\n"
             "Мир погиб. Остались пыль, ржавчина и отчаявшиеся выжившие.\n"
             "Ты основал(а) *{settlement}* -- хрупкое поселение на краю пустоты.\n\n"
-            "50 ходов. Столько у тебя есть, чтобы построить что-то, что выстоит.\n"
-            "Собирай ресурсы, возводи стены, заключай союзы -- или погибни.\n\n"
+            "Собирай ресурсы, возводи стены, заключай союзы -- или погибни.\n"
+            "Повышай уровень, становись сильнее, покоряй новые зоны.\n\n"
             "Твои люди смотрят. Веди их."
         ),
     },
@@ -33,12 +33,32 @@ _STRINGS: dict[str, dict[str, str]] = {
         "en": (
             "Welcome back, {name}.\n\n"
             "*{settlement}* still stands. Your people await your orders.\n"
-            "Turn {turn}/50."
+            "Week {turn}."
         ),
         "ru": (
             "С возвращением, {name}.\n\n"
             "*{settlement}* всё ещё стоит. Твои люди ждут приказов.\n"
-            "Ход {turn}/50."
+            "Неделя {turn}."
+        ),
+    },
+    "class_selection": {
+        "en": (
+            "Before you step into the Wasteland, choose who you are.\n\n"
+            "🔍 *Scavenger* -- Finds more scrap exploring ruins\n"
+            "🛡 *Warden* -- Military leader, walls hold longer\n"
+            "💰 *Trader* -- Caravan boss, better trade deals\n"
+            "🕊 *Diplomat* -- Smooth talker, faster faction rep\n"
+            "💊 *Medic* -- Field surgeon, keeps people alive\n\n"
+            "Choose your path:"
+        ),
+        "ru": (
+            "Прежде чем шагнуть в Пустошь, выбери, кто ты.\n\n"
+            "🔍 *Старатель* -- Находит больше хлама в руинах\n"
+            "🛡 *Страж* -- Военный лидер, стены стоят дольше\n"
+            "💰 *Торговец* -- Глава каравана, лучшие сделки\n"
+            "🕊 *Дипломат* -- Мастер переговоров, быстрее рост репутации\n"
+            "💊 *Медик* -- Полевой хирург, спасает людей\n\n"
+            "Выбери свой путь:"
         ),
     },
     "settlement_default_name": {
@@ -47,8 +67,12 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     # --- Status ---
     "status_header": {
-        "en": "--- *{settlement}* --- Turn {turn}/50 ---",
-        "ru": "--- *{settlement}* --- Ход {turn}/50 ---",
+        "en": "--- *{settlement}* --- Week {turn} ---",
+        "ru": "--- *{settlement}* --- Неделя {turn} ---",
+    },
+    "status_header_rpg": {
+        "en": "--- *{settlement}* --- Week {turn} ---",
+        "ru": "--- *{settlement}* --- Неделя {turn} ---",
     },
     "status_resources": {
         "en": "Resources:",
@@ -128,20 +152,6 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ru": "Изменения:",
     },
     # --- Win / Loss ---
-    "game_won": {
-        "en": (
-            "VICTORY!\n\n"
-            "*{settlement}* has become a beacon of hope in the Wasteland.\n"
-            "Population: {population} | Morale: {morale}\n\n"
-            "Your legacy will be remembered. Start /newgame to try again."
-        ),
-        "ru": (
-            "ПОБЕДА!\n\n"
-            "*{settlement}* стал маяком надежды в Пустоши.\n"
-            "Население: {population} | Мораль: {morale}\n\n"
-            "Твоё наследие запомнят. Начни /newgame, чтобы попробовать снова."
-        ),
-    },
     "game_lost": {
         "en": (
             "DEFEAT.\n\n"
@@ -168,50 +178,56 @@ _STRINGS: dict[str, dict[str, str]] = {
     # --- Help ---
     "help_text": {
         "en": (
-            "*Wasteland Chronicles* -- Survival Strategy Bot\n\n"
+            "*Wasteland Chronicles* -- Post-Apocalyptic RPG\n\n"
             "*Commands:*\n"
             "/start -- Begin or resume your game\n"
             "/status -- View settlement status\n"
             "/newgame -- Start a new game (abandons current)\n"
             "/help -- Show this help\n\n"
-            "*Actions (use buttons or type):*\n"
+            "*Actions (type in chat):*\n"
             "Build -- Construct buildings (costs scrap)\n"
-            "Explore -- Scavenge for scrap (risky)\n"
-            "Trade -- Exchange scrap for food\n"
+            "Explore -- Scavenge for scrap and gold (risky)\n"
+            "Trade -- Exchange scrap for food and gold\n"
             "Defend -- Fortify your settlement\n"
             "Diplomacy -- Improve faction relations\n"
             "Rest -- Recover morale\n\n"
             "*Resources:*\n"
             "Population -- Your settlers (0 = defeat)\n"
-            "Food -- Consumed each turn (0 for 2 turns = defeat)\n"
-            "Scrap -- Building material and trade currency\n"
+            "Food -- Consumed each turn (0 for 2+ turns = defeat)\n"
+            "Scrap -- Building material\n"
+            "Gold -- Premium currency for special purchases\n"
             "Morale -- Affects population growth (0-100)\n"
             "Defense -- Protection from attacks (0-100)\n\n"
-            "*Win:* Reach turn 50 with 100+ population and 60+ morale\n"
+            "*Progression:*\n"
+            "Earn XP each turn to level up. Higher levels unlock new\n"
+            "buildings, harder zones, and skill points.\n\n"
             "*Lose:* Population hits 0, or food stays at 0 for 2+ turns\n\n"
             "You get {max_turns} turns/day. Premium = unlimited."
         ),
         "ru": (
-            "*Хроники Пустоши* -- Стратегический бот выживания\n\n"
+            "*Хроники Пустоши* -- Постапокалиптическая RPG\n\n"
             "*Команды:*\n"
             "/start -- Начать или продолжить игру\n"
             "/status -- Посмотреть статус поселения\n"
             "/newgame -- Начать новую игру (текущая будет брошена)\n"
             "/help -- Показать справку\n\n"
-            "*Действия (кнопки или текст):*\n"
+            "*Действия (пишите в чат):*\n"
             "Строить -- Возводить постройки (стоит хлам)\n"
-            "Разведка -- Искать хлам (рискованно)\n"
-            "Торговля -- Менять хлам на еду\n"
+            "Разведка -- Искать хлам и золото (рискованно)\n"
+            "Торговля -- Менять хлам на еду и золото\n"
             "Оборона -- Укреплять поселение\n"
             "Дипломатия -- Улучшать отношения с фракциями\n"
             "Отдых -- Восстановить мораль\n\n"
             "*Ресурсы:*\n"
             "Население -- Ваши поселенцы (0 = поражение)\n"
             "Еда -- Расходуется каждый ход (0 два хода = поражение)\n"
-            "Хлам -- Стройматериал и валюта\n"
+            "Хлам -- Стройматериал\n"
+            "Золото -- Валюта для особых покупок\n"
             "Мораль -- Влияет на рост населения (0-100)\n"
             "Оборона -- Защита от атак (0-100)\n\n"
-            "*Победа:* Дожить до 50 хода с 100+ населением и 60+ моралью\n"
+            "*Прогресс:*\n"
+            "Получайте XP каждый ход для повышения уровня. Выше уровень =\n"
+            "новые постройки, сложные зоны, очки навыков.\n\n"
             "*Поражение:* Население = 0, или еда = 0 два хода подряд\n\n"
             "У вас {max_turns} ходов/день. Премиум = безлимит."
         ),
@@ -230,8 +246,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "  · _\"send scouts to explore the ruins\"_\n"
             "  · _\"open negotiations with the Trader Guild\"_\n"
             "  · _\"let everyone rest this week\"_\n\n"
-            "You have 50 weeks. "
-            "Reach 100+ people and 60+ morale to win. "
+            "There is no time limit — grow as far as you can. "
+            "Earn XP, level up, unlock new buildings and zones. "
             "Run out of food for two weeks, or lose everyone — and it's over.\n\n"
             "Press 📊 Status anytime. Now — what do you want to do first?"
         ),
@@ -247,8 +263,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "  · _«разведчиков — в руины»_\n"
             "  · _«начать переговоры с Торговой Гильдией»_\n"
             "  · _«дать всем отдохнуть на этой неделе»_\n\n"
-            "У тебя 50 недель. "
-            "Доведи до 100+ людей и 60+ морали — победа. "
+            "Времени нет — расти, пока можешь. "
+            "Зарабатывай XP, повышай уровень, открывай новые постройки и зоны. "
             "Голод два хода или нет людей — конец.\n\n"
             "Нажми 📊 Статус в любой момент. Ну — что делаем первым делом?"
         ),
@@ -268,6 +284,36 @@ _STRINGS: dict[str, dict[str, str]] = {
     "faction_neutral": {"en": "Neutral", "ru": "Нейтральный"},
     "faction_unfriendly": {"en": "Враждебный", "ru": "Недружелюбный"},
     "faction_hostile": {"en": "Hostile", "ru": "Враждебный"},
+    # --- Skills ---
+    "skills_header": {
+        "en": "🔮 *Skills* — {points} point(s) available",
+        "ru": "🔮 *Навыки* — {points} очков доступно",
+    },
+    "skill_learned": {
+        "en": "✅ *{skill}* upgraded to rank {rank} (effect: +{effect}). {remaining} point(s) remaining.",
+        "ru": "✅ *{skill}* улучшен до ранга {rank} (эффект: +{effect}). Осталось {remaining} очков.",
+    },
+    "skill_cannot_learn": {
+        "en": "Cannot learn skill: {reason}",
+        "ru": "Невозможно изучить навык: {reason}",
+    },
+    "skills_no_points": {
+        "en": "You have no skill points. Earn more by leveling up (1 point every 5 levels).",
+        "ru": "У вас нет очков навыков. Получайте их за повышение уровня (1 очко каждые 5 уровней).",
+    },
+    # --- Shop ---
+    "shop_header": {
+        "en": "🏪 *Shop* — You have {gold} 💰 gold",
+        "ru": "🏪 *Магазин* — У вас {gold} 💰 золота",
+    },
+    "shop_purchased": {
+        "en": "✅ Purchased *{item}* for {cost} 💰. Remaining gold: {gold}.",
+        "ru": "✅ Куплено *{item}* за {cost} 💰. Осталось золота: {gold}.",
+    },
+    "shop_not_enough_gold": {
+        "en": "Not enough gold. Need {cost} 💰, you have {gold} 💰.",
+        "ru": "Недостаточно золота. Нужно {cost} 💰, у вас {gold} 💰.",
+    },
 }
 
 

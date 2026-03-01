@@ -100,22 +100,86 @@ async function getTurnsDistribution() {
   }));
 }
 
+async function getSkillPopularity() {
+  // Aggregate skills JSONB across active games
+  const result = await db.execute(sql`
+    SELECT key as skill, SUM(value::int) as total_ranks
+    FROM game_states, jsonb_each_text(skills)
+    WHERE status = 'active' AND skills != '{}'::jsonb
+    GROUP BY key
+    ORDER BY total_ranks DESC
+    LIMIT 12
+  `);
+
+  const SKILL_LABELS: Record<string, string> = {
+    iron_stomach: "Iron Stomach",
+    field_medic: "Field Medic",
+    inspiring_leader: "Inspiring Leader",
+    scrap_mastery: "Scrap Mastery",
+    haggler: "Haggler",
+    black_market: "Black Market",
+    salvage_expert: "Salvage Expert",
+    thick_skin: "Thick Skin",
+    fortification_expert: "Fortification Expert",
+    patrol_routes: "Patrol Routes",
+    raiders_instinct: "Raider's Instinct",
+    caravan_network: "Caravan Network",
+  };
+
+  return result.rows.map((r: any) => ({
+    skill: SKILL_LABELS[r.skill] || r.skill,
+    ranks: Number(r.total_ranks),
+  }));
+}
+
+async function getGoldEconomy() {
+  // Daily gold earned and spent via turn history
+  const result = await db.execute(sql`
+    SELECT
+      DATE(created_at) as day,
+      SUM(CASE WHEN gold_delta > 0 THEN gold_delta ELSE 0 END) as earned,
+      SUM(CASE WHEN gold_delta < 0 THEN ABS(gold_delta) ELSE 0 END) as spent
+    FROM turn_history
+    WHERE created_at >= NOW() - INTERVAL '30 days'
+    GROUP BY DATE(created_at)
+    ORDER BY day
+  `);
+
+  return result.rows.map((r: any) => ({
+    day: new Date(r.day).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
+    earned: Number(r.earned),
+    spent: Number(r.spent),
+  }));
+}
+
 export default async function AnalyticsPage() {
-  const [retention, voicePct, languages, avgTurns, turnsDistribution] =
-    await Promise.all([
-      getRetention(),
-      getVoiceUsage(),
-      getLanguageDistribution(),
-      getAvgTurnsPerGame(),
-      getTurnsDistribution(),
-    ]);
+  const [
+    retention,
+    voicePct,
+    languages,
+    avgTurns,
+    turnsDistribution,
+    skillPopularity,
+    goldEconomy,
+  ] = await Promise.all([
+    getRetention(),
+    getVoiceUsage(),
+    getLanguageDistribution(),
+    getAvgTurnsPerGame(),
+    getTurnsDistribution(),
+    getSkillPopularity(),
+    getGoldEconomy(),
+  ]);
 
   const statCards = [
     { label: "Day 1 Retention", value: `${retention.d1}%`, icon: "\u{1F504}" },
     { label: "Day 7 Retention", value: `${retention.d7}%`, icon: "\u{1F4C6}" },
     { label: "Voice Usage", value: `${voicePct}%`, icon: "\u{1F3A4}" },
     {
-      label: "Avg Turns / Game",
+      label: "Avg Weeks / Game",
       value: avgTurns,
       icon: "\u{1F3B2}",
     },
@@ -145,6 +209,8 @@ export default async function AnalyticsPage() {
       <AnalyticsCharts
         languages={languages}
         turnsDistribution={turnsDistribution}
+        skillPopularity={skillPopularity}
+        goldEconomy={goldEconomy}
       />
     </div>
   );

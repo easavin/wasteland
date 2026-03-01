@@ -1,8 +1,8 @@
 """Core turn-processing pipeline.
 
 Orchestrates a single game turn: computes deltas, rolls events, updates
-faction reputation, checks win/loss, generates narration, and persists
-everything to the database.
+faction reputation, processes XP/level/gold progression, checks loss
+conditions, generates narration, and persists everything to the database.
 """
 
 from __future__ import annotations
@@ -18,11 +18,18 @@ from bot.engine.buildings import (
     calculate_building_effects,
     validate_build,
 )
+from bot.engine.classes import get_starvation_threshold
 from bot.engine.events import roll_random_event
 from bot.engine.factions import update_faction_rep
 from bot.engine.game_state import GameState, TurnResult
+from bot.engine.progression import (
+    calculate_xp_for_turn,
+    check_milestones,
+    get_zone,
+    process_level_ups,
+)
 from bot.engine.resources import apply_action_bonus, calculate_base_deltas
-from bot.engine.win_conditions import check_loss, check_win
+from bot.engine.win_conditions import check_loss
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +58,7 @@ def _merge_deltas(base: dict[str, int], extra: dict[str, int]) -> None:
 
 def _apply_deltas_to_state(state: GameState, deltas: dict[str, int]) -> None:
     """Mutate *state* by adding every applicable delta."""
-    resource_keys = ("population", "food", "scrap", "morale", "defense")
+    resource_keys = ("population", "food", "scrap", "morale", "defense", "gold")
     for key in resource_keys:
         if key in deltas:
             setattr(state, key, getattr(state, key) + deltas[key])
@@ -86,6 +93,8 @@ def _plain_narration(
     action: str,
     target: str | None,
     outcome: str,
+    xp_earned: int = 0,
+    new_levels: list[int] | None = None,
 ) -> str:
     """Generate a simple text summary without an AI narrator."""
     parts: list[str] = []
@@ -98,7 +107,7 @@ def _plain_narration(
 
     # Delta summary
     delta_strs = []
-    for key in ("population", "food", "scrap", "morale", "defense"):
+    for key in ("population", "food", "scrap", "morale", "defense", "gold"):
         val = deltas.get(key, 0)
         if val != 0:
             sign = "+" if val > 0 else ""
@@ -110,16 +119,25 @@ def _plain_narration(
     if event:
         parts.append(f"Event: {event['name']} -- {event.get('narration_hint', '')}")
 
+    # XP
+    if xp_earned > 0:
+        parts.append(f"XP earned: +{xp_earned}")
+
+    # Level up
+    if new_levels:
+        for lvl in new_levels:
+            parts.append(f"*** LEVEL UP! You are now level {lvl}! ***")
+
     # Current resources
     parts.append(
         f"Status: pop={state.population}, food={state.food}, "
-        f"scrap={state.scrap}, morale={state.morale}, defense={state.defense}"
+        f"scrap={state.scrap}, morale={state.morale}, defense={state.defense}, "
+        f"gold={state.gold}"
     )
+    parts.append(f"Level {state.level} | Zone {state.zone}")
 
     # Outcome
-    if outcome == "won":
-        parts.append("*** VICTORY! Your settlement has thrived. ***")
-    elif outcome == "lost":
+    if outcome == "lost":
         parts.append("*** DEFEAT. The wasteland claims another settlement. ***")
 
     return "\n".join(parts)
@@ -139,6 +157,8 @@ async def _persist_turn(
     event: dict | None,
     narration: str,
     language: str,
+    xp_earned: int = 0,
+    level_before: int = 1,
 ) -> None:
     """Write updated game_state, insert turn_history row, and log an
     analytics event.  Runs inside a single transaction for consistency.
@@ -167,9 +187,17 @@ async def _persist_turn(
                        buildings       = $16::jsonb,
                        active_effects  = $17::jsonb,
                        narrator_memory = $18::jsonb,
+                       gold            = $19,
+                       xp              = $20,
+                       level           = $21,
+                       skill_points    = $22,
+                       skills          = $23::jsonb,
+                       milestones      = $24::jsonb,
+                       zone            = $25,
+                       inventory       = $26::jsonb,
                        updated_at      = NOW(),
-                       ended_at        = CASE WHEN $1::varchar IN ('won','lost') THEN NOW() ELSE ended_at END
-                 WHERE id = $19
+                       ended_at        = CASE WHEN $1::varchar = 'lost' THEN NOW() ELSE ended_at END
+                 WHERE id = $27
                 """,
                 state.status,
                 state.turn_number,
@@ -189,6 +217,14 @@ async def _persist_turn(
                 json.dumps(state.buildings),
                 json.dumps(state.active_effects),
                 json.dumps(state.narrator_memory),
+                state.gold,
+                state.xp,
+                state.level,
+                state.skill_points,
+                json.dumps(state.skills),
+                json.dumps(state.milestones),
+                state.zone,
+                json.dumps(state.inventory),
                 state.id,
             )
 
@@ -199,12 +235,14 @@ async def _persist_turn(
                     game_id, turn_number, player_action, action_target,
                     pop_before, food_before, scrap_before, morale_before, defense_before,
                     pop_delta, food_delta, scrap_delta, morale_delta, defense_delta,
-                    event_id, event_outcome, narration, narration_lang
+                    event_id, event_outcome, narration, narration_lang,
+                    xp_earned, gold_before, gold_delta, level_before, level_after
                 ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6, $7, $8, $9,
                     $10, $11, $12, $13, $14,
-                    $15, $16, $17, $18
+                    $15, $16, $17, $18,
+                    $19, $20, $21, $22, $23
                 )
                 """,
                 state.id,
@@ -225,6 +263,11 @@ async def _persist_turn(
                 event.get("narration_hint", "") if event else None,
                 narration,
                 language,
+                xp_earned,
+                snapshot_before.get("gold", 0),
+                deltas.get("gold", 0),
+                level_before,
+                state.level,
             )
 
             # 3. Analytics event.
@@ -234,6 +277,9 @@ async def _persist_turn(
                 "action": action,
                 "target": target,
                 "deltas": {k: v for k, v in deltas.items() if v != 0},
+                "level": state.level,
+                "xp_earned": xp_earned,
+                "zone": state.zone,
             }
             if event:
                 analytics_data["event_id"] = event["id"]
@@ -287,11 +333,13 @@ async def process_turn(
     Returns
     -------
     TurnResult:
-        Contains narration, mutated state, outcome, event info, and deltas.
+        Contains narration, mutated state, outcome, event info, deltas,
+        xp_earned, new_levels, and new_milestones.
     """
     # Step 1 -- Increment turn number.
     state.turn_number += 1
     turn = state.turn_number
+    level_before = state.level
 
     # Step 2 -- Snapshot resources *before* changes.
     snapshot_before = state.snapshot_resources()
@@ -299,11 +347,11 @@ async def process_turn(
     # Step 3 -- Base per-turn deltas (food consumption, morale drift, etc.).
     all_deltas: dict[str, int] = calculate_base_deltas(state)
 
-    # Step 4 -- Building per-turn effects.
-    building_effects = calculate_building_effects(state.buildings)
+    # Step 4 -- Building per-turn effects (includes gold from market/vault).
+    building_effects = calculate_building_effects(state.buildings, state=state)
     _merge_deltas(all_deltas, building_effects)
 
-    # Step 5 -- Action bonus.
+    # Step 5 -- Action bonus (includes gold from trade/explore).
     action_deltas = apply_action_bonus(action, target, state)
     _merge_deltas(all_deltas, action_deltas)
 
@@ -320,10 +368,10 @@ async def process_turn(
                 "Build rejected for game %s: %s", state.id, reason,
             )
 
-    # Step 7 -- Random event.
+    # Step 7 -- Random event (zone-aware).
     event = roll_random_event(state, turn)
 
-    # Step 8 -- Merge event deltas.
+    # Step 8 -- Merge event deltas (may include gold).
     if event:
         _merge_deltas(all_deltas, event["deltas"])
 
@@ -346,23 +394,37 @@ async def process_turn(
     # Step 13 -- Update player style (EMA).
     _update_player_style(state, action)
 
-    # Step 14 -- Check win / loss.
+    # Step 14 -- XP / Level / Milestones / Zone progression.
+    xp_earned = calculate_xp_for_turn(action, event, all_deltas, state)
+
+    # Check milestones (one-time XP awards)
+    new_milestone_entries = check_milestones(state)
+    new_milestone_ids: list[str] = []
+    for mid, mxp in new_milestone_entries:
+        xp_earned += mxp
+        state.milestones.append(mid)
+        new_milestone_ids.append(mid)
+
+    # Process level-ups (mutates state.xp, state.level, state.skill_points, state.gold)
+    new_levels = process_level_ups(state, xp_earned)
+
+    # Update zone based on new level
+    state.zone = get_zone(state.level)
+
+    # Step 15 -- Check loss (no win condition in unlimited game).
     outcome: str = "continue"
-    if check_win(state):
-        outcome = "won"
-        state.status = "won"
-    else:
-        is_lost, loss_reason = check_loss(state)
-        if is_lost:
-            outcome = "lost"
-            state.status = "lost"
+    starvation_threshold = get_starvation_threshold(state.player_class)
+    is_lost, loss_reason = check_loss(state, starvation_threshold)
+    if is_lost:
+        outcome = "lost"
+        state.status = "lost"
 
     # Build a concise delta dict (only non-zero entries) for narration.
     display_deltas: dict[str, int] = {
         k: v for k, v in all_deltas.items() if v != 0
     }
 
-    # Step 15 -- Generate narration.
+    # Step 16 -- Generate narration.
     narration: str
     if narrator is not None:
         try:
@@ -375,30 +437,35 @@ async def process_turn(
                 language=language,
                 is_premium=is_premium,
                 build_error=build_error,
+                xp_earned=xp_earned,
+                new_levels=new_levels,
             )
         except Exception:
             logger.exception("Narrator failed; falling back to plain text")
             narration = _plain_narration(
                 state, display_deltas, event, action, target, outcome,
+                xp_earned=xp_earned, new_levels=new_levels,
             )
     else:
         narration = _plain_narration(
             state, display_deltas, event, action, target, outcome,
+            xp_earned=xp_earned, new_levels=new_levels,
         )
 
-    # Step 16 -- Update narrator memory (keep last 5 summaries).
+    # Step 17 -- Update narrator memory (keep last 5 summaries).
     summary = (
         f"T{turn}: {action}"
         + (f"({target})" if target else "")
         + f" | pop={state.population} food={state.food} scrap={state.scrap}"
-        + f" morale={state.morale} def={state.defense}"
+        + f" morale={state.morale} def={state.defense} gold={state.gold}"
+        + f" | L{state.level} Z{state.zone} +{xp_earned}xp"
     )
     if event:
         summary += f" | event={event['id']}"
     state.narrator_memory.append(summary)
     state.narrator_memory = state.narrator_memory[-5:]
 
-    # Step 17 -- Persist to database (skip if pool is None -- test mode).
+    # Step 18 -- Persist to database (skip if pool is None -- test mode).
     if pool is not None:
         try:
             await _persist_turn(
@@ -411,18 +478,20 @@ async def process_turn(
                 event=event,
                 narration=narration,
                 language=language,
+                xp_earned=xp_earned,
+                level_before=level_before,
             )
         except Exception:
             logger.exception("Failed to persist turn %d for game %s", turn, state.id)
-            # We still return the result even if persistence fails so the
-            # player sees the narration.  A retry / reconciliation mechanism
-            # can handle this later.
 
-    # Step 18 -- Return result.
+    # Step 19 -- Return result.
     return TurnResult(
         narration=narration,
         new_state=state,
         outcome=outcome,
         event=event,
         deltas=display_deltas,
+        xp_earned=xp_earned,
+        new_levels=new_levels,
+        new_milestones=new_milestone_ids,
     )

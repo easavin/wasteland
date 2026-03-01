@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from bot.config import settings
 from bot.db.pool import init_db_pool, close_db_pool
-from bot.handlers import start, game, help as help_handler, payment, voice, messages
+from bot.handlers import start, game, help as help_handler, payment, voice, messages, skills, shop
 from bot.narrator.gemini_client import GeminiNarrator
 from bot.narrator.profiler import PlayerProfiler
 from bot.utils.logger import setup_logging
@@ -38,6 +38,8 @@ async def post_init(application) -> None:
         BotCommand("start",   "Start or resume your game"),
         BotCommand("newgame", "Abandon current game and start fresh"),
         BotCommand("status",  "Check your settlement status"),
+        BotCommand("skills",  "View and upgrade skills"),
+        BotCommand("shop",    "Spend gold on supplies"),
         BotCommand("help",    "How to play"),
     ])
 
@@ -85,6 +87,8 @@ def main() -> None:
     app.add_handler(CommandHandler("status", game.handle_status))
     app.add_handler(CommandHandler("newgame", game.handle_new_game))
     app.add_handler(CommandHandler("premium", payment.handle_premium))
+    app.add_handler(CommandHandler("skills", skills.handle_skills))
+    app.add_handler(CommandHandler("shop", shop.handle_shop))
     app.add_handler(CommandHandler("language", help_handler.handle_language))
 
     # --- Callback queries (inline keyboard buttons) ---
