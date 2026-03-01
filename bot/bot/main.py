@@ -2,6 +2,7 @@
 
 import logging
 
+from telegram import BotCommand
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -21,11 +22,24 @@ from bot.utils.logger import setup_logging
 logger = logging.getLogger(__name__)
 
 
+async def error_handler(update, context) -> None:
+    """Log all unhandled exceptions so the bot doesn't silently die."""
+    logger.error("Update %s caused error", update, exc_info=context.error)
+
+
 async def post_init(application) -> None:
     """Called after Application.initialize() — set up DB pool and narrator."""
     # Database
     pool = await init_db_pool(settings.database_url)
     application.bot_data["db_pool"] = pool
+
+    # Register bot commands (shows the / suggestion list in Telegram)
+    await application.bot.set_my_commands([
+        BotCommand("start",   "Start or resume your game"),
+        BotCommand("newgame", "Abandon current game and start fresh"),
+        BotCommand("status",  "Check your settlement status"),
+        BotCommand("help",    "How to play"),
+    ])
 
     # AI narrator (gracefully optional)
     if settings.gemini_api_key:
@@ -89,6 +103,8 @@ def main() -> None:
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, messages.handle_free_text)
     )
+
+    app.add_error_handler(error_handler)
 
     logger.info("Bot handlers registered. Starting polling...")
     app.run_polling(drop_pending_updates=True)

@@ -131,21 +131,7 @@ def _format_mini_status(state: GameState, lang: str) -> str:
 
 
 def _action_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """Main action buttons."""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(get_text("action_build", lang), callback_data="menu:build"),
-            InlineKeyboardButton(get_text("action_explore", lang), callback_data="turn:explore"),
-        ],
-        [
-            InlineKeyboardButton(get_text("action_trade", lang), callback_data="turn:trade"),
-            InlineKeyboardButton(get_text("action_defend", lang), callback_data="turn:defend"),
-        ],
-        [
-            InlineKeyboardButton(get_text("action_diplomacy", lang), callback_data="menu:diplomacy"),
-            InlineKeyboardButton(get_text("action_rest", lang), callback_data="turn:rest"),
-        ],
-        [
-            InlineKeyboardButton("📊 " + get_text("action_status", lang), callback_data="cmd:status"),
-        ],
-    ])
+    """Status-only keyboard. Game actions happen via typed text messages."""
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("📊 " + get_text("action_status", lang), callback_data="cmd:status"),
+    ]])

@@ -11,8 +11,7 @@ from bot.config import settings
 from bot.db.queries.players import get_player_by_telegram_id, check_and_consume_turn
 from bot.db.queries.game_states import get_active_game, end_game, create_game
 from bot.db.queries.analytics import log_event
-from bot.engine.buildings import BUILDINGS
-from bot.engine.factions import get_faction_status, FACTIONS
+from bot.engine.factions import get_faction_status
 from bot.engine.game_state import GameState
 from bot.engine.turn_processor import process_turn
 from bot.i18n import get_text
@@ -20,6 +19,20 @@ from bot.i18n import get_text
 logger = logging.getLogger(__name__)
 
 VALID_ACTIONS = {"build", "explore", "trade", "defend", "diplomacy", "rest"}
+
+
+async def _reply(query_or_message, text: str, **kwargs) -> None:
+    """Always send a new reply message — never edit existing ones.
+
+    Accepts either a Message or a CallbackQuery as the first argument.
+    This keeps the chat history intact so narration accumulates as a log.
+    """
+    if hasattr(query_or_message, "message"):
+        # CallbackQuery — reply to the message the button was attached to
+        await query_or_message.message.reply_text(text, **kwargs)
+    else:
+        # Plain Message (text command, voice, etc.)
+        await query_or_message.reply_text(text, **kwargs)
 
 
 # ------------------------------------------------------------------
@@ -44,7 +57,7 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     text = _format_full_status(state, lang)
     await update.message.reply_text(
         text,
-        reply_markup=_action_keyboard(lang),
+        reply_markup=_status_keyboard(lang),
         parse_mode="Markdown",
     )
 
@@ -54,7 +67,11 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # ------------------------------------------------------------------
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Dispatch inline keyboard button presses."""
+    """Dispatch inline keyboard button presses.
+
+    Buttons are status/info only — game actions happen via text messages.
+    All responses are sent as new messages so chat history stays intact.
+    """
     query = update.callback_query
     await query.answer()
     data = query.data or ""
@@ -62,41 +79,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     pool = context.bot_data["db_pool"]
     player = await get_player_by_telegram_id(pool, query.from_user.id)
     if not player:
-        await query.edit_message_text(get_text("free_text_no_game", "en"))
+        await query.message.reply_text(get_text("free_text_no_game", "en"))
         return
 
     lang = player.get("language", "en")
     player_id = str(player["id"])
 
-    # Route by prefix
-    if data.startswith("turn:"):
-        parts = data.split(":")
-        action = parts[1] if len(parts) > 1 else ""
-        target = parts[2] if len(parts) > 2 else None
-        await _execute_turn(query, context, player, action, target)
-
-    elif data.startswith("menu:build"):
-        await _show_build_menu(query, context, player)
-
-    elif data.startswith("menu:diplomacy"):
-        await _show_diplomacy_menu(query, player)
-
-    elif data == "cmd:status":
+    if data == "cmd:status":
         game_row = await get_active_game(pool, player_id)
         if not game_row:
-            await query.edit_message_text(get_text("free_text_no_game", lang))
+            await query.message.reply_text(get_text("free_text_no_game", lang))
             return
         state = GameState.from_db_row(game_row)
-        await query.edit_message_text(
+        await query.message.reply_text(
             _format_full_status(state, lang),
-            reply_markup=_action_keyboard(lang),
-            parse_mode="Markdown",
-        )
-
-    elif data == "menu:actions":
-        await query.edit_message_text(
-            get_text("status_resources", lang),
-            reply_markup=_action_keyboard(lang),
+            reply_markup=_status_keyboard(lang),
             parse_mode="Markdown",
         )
 
@@ -120,10 +117,7 @@ async def _execute_turn(
 
     if action not in VALID_ACTIONS:
         text = get_text("turn_invalid_action", lang, action=action)
-        if hasattr(query_or_message, "edit_message_text"):
-            await query_or_message.edit_message_text(text, reply_markup=_action_keyboard(lang))
-        else:
-            await query_or_message.reply_text(text, reply_markup=_action_keyboard(lang))
+        await _reply(query_or_message, text, reply_markup=_status_keyboard(lang))
         return
 
     # Rate limit check
@@ -132,20 +126,14 @@ async def _execute_turn(
     )
     if not can_play:
         text = get_text("turn_rate_limited", lang, max_turns=settings.free_turns_per_day)
-        if hasattr(query_or_message, "edit_message_text"):
-            await query_or_message.edit_message_text(text)
-        else:
-            await query_or_message.reply_text(text)
+        await _reply(query_or_message, text)
         return
 
     # Load active game
     game_row = await get_active_game(pool, player_id)
     if not game_row:
         text = get_text("free_text_no_game", lang)
-        if hasattr(query_or_message, "edit_message_text"):
-            await query_or_message.edit_message_text(text)
-        else:
-            await query_or_message.reply_text(text)
+        await _reply(query_or_message, text)
         return
 
     state = GameState.from_db_row(game_row)
@@ -195,29 +183,14 @@ async def _execute_turn(
             population=s.population,
             morale=s.morale,
         )
-        markup = InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔄 New Game", callback_data="cmd:newgame"),
-        ]])
     elif result.outcome == "lost":
         text += "\n\n" + get_text(
             "game_lost", lang,
             settlement=s.settlement_name,
         )
-        markup = InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔄 New Game", callback_data="cmd:newgame"),
-        ]])
-    else:
-        markup = _action_keyboard(lang)
 
-    # Send response
-    if hasattr(query_or_message, "edit_message_text"):
-        await query_or_message.edit_message_text(
-            text, reply_markup=markup, parse_mode="Markdown",
-        )
-    else:
-        await query_or_message.reply_text(
-            text, reply_markup=markup, parse_mode="Markdown",
-        )
+    # Always send as a new message so chat history stacks
+    await _reply(query_or_message, text, reply_markup=_status_keyboard(lang), parse_mode="Markdown")
 
 
 # ------------------------------------------------------------------
@@ -225,9 +198,10 @@ async def _execute_turn(
 # ------------------------------------------------------------------
 
 async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Abandon current game and start fresh."""
+    """Abandon current game and start fresh with full narrator onboarding."""
     pool = context.bot_data["db_pool"]
-    player = await get_player_by_telegram_id(pool, update.effective_user.id)
+    user = update.effective_user
+    player = await get_player_by_telegram_id(pool, user.id)
     if not player:
         await update.message.reply_text("Send /start first!")
         return
@@ -243,78 +217,41 @@ async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Create new game
     settlement = get_text(
         "settlement_default_name", lang,
-        name=update.effective_user.first_name or "Survivor",
+        name=user.first_name or "Survivor",
     )
     game_row = await create_game(pool, player_id, settlement)
     state = GameState.from_db_row(game_row)
-
     await log_event(pool, player_id, "game_start", {"game_id": str(state.id)})
 
-    text = get_text("new_game_abandoned", lang) + "\n\n"
-    text += get_text(
+    # Message 1: narrator intro (atmospheric story, no buttons)
+    narrator = context.bot_data.get("narrator")
+    narration = None
+    if narrator:
+        try:
+            narration = await narrator.generate_onboarding(
+                settlement_name=settlement,
+                language=lang,
+                player_name=user.first_name or "Survivor",
+            )
+        except Exception:
+            logger.exception("Narrator onboarding failed on new game")
+
+    intro_text = narration or get_text(
         "welcome", lang,
-        name=update.effective_user.first_name or "Survivor",
+        name=user.first_name or "Survivor",
         settlement=settlement,
     )
+    await update.message.reply_text(intro_text, parse_mode="Markdown")
 
+    # Message 2: tutorial guide + current status + status button
+    guide = get_text("onboarding_guide", lang)
+    status = _format_mini_status(state, lang)
     await update.message.reply_text(
-        text,
-        reply_markup=_action_keyboard(lang),
+        f"{guide}\n\n{status}",
+        reply_markup=_status_keyboard(lang),
         parse_mode="Markdown",
     )
 
-
-# ------------------------------------------------------------------
-# Build menu
-# ------------------------------------------------------------------
-
-async def _show_build_menu(query, context, player: dict) -> None:
-    """Show available buildings as inline buttons."""
-    pool = context.bot_data["db_pool"]
-    lang = player.get("language", "en")
-    player_id = str(player["id"])
-
-    buttons = []
-    for bname, bdata in BUILDINGS.items():
-        cost = bdata["cost"]
-        max_count = bdata["max"]
-        label = f"{bname.title()} ({cost}🔩, max {max_count})"
-        buttons.append([InlineKeyboardButton(label, callback_data=f"turn:build:{bname}")])
-
-    buttons.append([InlineKeyboardButton(
-        get_text("action_back", lang), callback_data="menu:actions",
-    )])
-
-    await query.edit_message_text(
-        get_text("build_menu_header", lang),
-        reply_markup=InlineKeyboardMarkup(buttons),
-        parse_mode="Markdown",
-    )
-
-
-# ------------------------------------------------------------------
-# Diplomacy menu
-# ------------------------------------------------------------------
-
-async def _show_diplomacy_menu(query, player: dict) -> None:
-    """Show faction diplomacy options."""
-    lang = player.get("language", "en")
-    buttons = []
-    for fname, fdata in FACTIONS.items():
-        label = fdata["name"].get(lang, fdata["name"]["en"])
-        buttons.append([InlineKeyboardButton(
-            f"🤝 {label}", callback_data=f"turn:diplomacy:{fname}",
-        )])
-
-    buttons.append([InlineKeyboardButton(
-        get_text("action_back", lang), callback_data="menu:actions",
-    )])
-
-    await query.edit_message_text(
-        "Choose a faction to negotiate with:",
-        reply_markup=InlineKeyboardMarkup(buttons),
-        parse_mode="Markdown",
-    )
 
 
 # ------------------------------------------------------------------
@@ -362,22 +299,16 @@ def _bar(value: int, max_val: int, length: int = 10) -> str:
     return "█" * filled + "░" * (length - filled)
 
 
-def _action_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """Standard action buttons."""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🏗 " + get_text("action_build", lang), callback_data="menu:build"),
-            InlineKeyboardButton("🔍 " + get_text("action_explore", lang), callback_data="turn:explore"),
-        ],
-        [
-            InlineKeyboardButton("💰 " + get_text("action_trade", lang), callback_data="turn:trade"),
-            InlineKeyboardButton("🛡 " + get_text("action_defend", lang), callback_data="turn:defend"),
-        ],
-        [
-            InlineKeyboardButton("🤝 " + get_text("action_diplomacy", lang), callback_data="menu:diplomacy"),
-            InlineKeyboardButton("😴 " + get_text("action_rest", lang), callback_data="turn:rest"),
-        ],
-        [
-            InlineKeyboardButton("📊 " + get_text("action_status", lang), callback_data="cmd:status"),
-        ],
-    ])
+def _status_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Single-button keyboard — status only. Actions happen via text."""
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("📊 " + get_text("action_status", lang), callback_data="cmd:status"),
+    ]])
+
+
+def _format_mini_status(state: GameState, lang: str) -> str:
+    """Compact one-line resource bar."""
+    return (
+        f"👥{state.population} 🌾{state.food} 🔩{state.scrap} "
+        f"😊{state.morale} 🛡{state.defense}  (Week {state.turn_number}/50)"
+    )
