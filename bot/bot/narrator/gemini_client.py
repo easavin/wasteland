@@ -102,6 +102,7 @@ Keep response to approximately {word_limit} words.
 CRITICAL RULES:
 - Never break character
 - Never reference game mechanics directly (no "+10 food" or "XP")
+- Never mention "Week X", "Week Two", or count weeks in the narrative — the journey has no fixed end
 - Weave resource changes into narrative naturally
 - End with a brief hint about what might come next
 - Match the player's communication style and vocabulary level
@@ -118,7 +119,7 @@ CRITICAL RULES:
         if new_levels:
             level_up_text = f"\nLEVEL UP! Player reached level {new_levels[-1]}. Weave a sense of growing power/reputation into the narrative."
 
-        turn_desc = f"""WEEK {state.turn_number}:
+        turn_desc = f"""SETTLEMENT STATE:
 
 Settlement: {state.settlement_name}
 Class: {cls_name_en} | Level {state.level} | Zone {state.zone}
@@ -327,7 +328,6 @@ IMPORTANT: For "build", always extract the building type from the message as the
 CURRENT SETTLEMENT STATE — use this to give informed, specific answers:
 - Settlement: {state.settlement_name}
 - Class: {cls_name} | Level {state.level} | Zone {state.zone}
-- Week: {state.turn_number}
 - Population: {state.population} survivors
 - Food: {state.food} (consumed each week — runs out = starvation)
 - Scrap: {state.scrap} (building material and trade currency)
@@ -362,6 +362,7 @@ Respond in character as the Navigator. Be SPECIFIC and USEFUL:
 - If they ask about gold/shop — mention what they can buy and how much they have
 Always ground your answer in the actual settlement state and lore.
 End with a natural nudge toward action — suggest something relevant to their situation.
+Never mention "Week X" or count weeks — the journey has no fixed end.
 
 100-150 words. Language: {lang_name} ONLY."""
 
