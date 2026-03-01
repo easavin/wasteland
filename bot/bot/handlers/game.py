@@ -76,7 +76,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await _execute_turn(query, context, player, action, target)
 
     elif data.startswith("menu:build"):
-        await _show_build_menu(query, player)
+        await _show_build_menu(query, context, player)
 
     elif data.startswith("menu:diplomacy"):
         await _show_diplomacy_menu(query, player)
@@ -268,15 +268,11 @@ async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # Build menu
 # ------------------------------------------------------------------
 
-async def _show_build_menu(query, player: dict) -> None:
+async def _show_build_menu(query, context, player: dict) -> None:
     """Show available buildings as inline buttons."""
-    pool = query.get_bot().bot_data.get("db_pool") if hasattr(query, "get_bot") else None
+    pool = context.bot_data["db_pool"]
     lang = player.get("language", "en")
     player_id = str(player["id"])
-
-    # We need the game state to show current building counts
-    if pool is None:
-        pool = query._bot.bot_data["db_pool"] if hasattr(query, "_bot") else None
 
     buttons = []
     for bname, bdata in BUILDINGS.items():

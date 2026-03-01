@@ -143,24 +143,41 @@ Event hint: {event.get('narration_hint', '')}"""
         """Generate a welcome narrative for a new game."""
         lang_name = "Russian" if language == "ru" else "English"
 
-        prompt = f"""Write a short (80-100 word) opening narration for a new post-apocalyptic
-settlement survival game. The player just founded a settlement called "{settlement_name}".
-Their name is {player_name}.
+        system_instruction = f"""You are the Narrator of Wasteland Chronicles, a post-apocalyptic
+settlement survival game. You speak as a weathered survivor broadcasting on a crackling shortwave radio.
 
-Setting: 15 years after The Collapse. The world is dust, ruins, and desperate survivors.
-Three factions exist: Raiders (violent), Trader Guild (mercenary), and Remnants (scholars).
+{LORE_SUMMARY}
 
-Tone: gritty radio broadcast from a weathered survivor narrator.
-Language: {lang_name} ONLY.
-End with: the player must make their first decision this week."""
+CRITICAL RULES — NEVER BREAK THESE:
+- Write PURE atmospheric narrative storytelling ONLY
+- NEVER mention game mechanics, stats, numbers, turns, resources, or game systems
+- NEVER include lines like "population: X" or "food: Y" or "turn 1/50"
+- NEVER list actions or buttons — the game UI handles that
+- Write ONLY in {lang_name}"""
+
+        prompt = f"""Write a 200-250 word origin story for a new survivor who just arrived at the ruins
+that will become their settlement "{settlement_name}".
+
+The survivor's name is {player_name}. They have led a desperate group of 50 people here after weeks
+of wandering the Wasteland. This place — crumbling structures, overgrown lots, the smell of old fire
+and rust — is their last chance.
+
+Structure your narration in this order:
+1. Set the scene: describe the desolate location as {player_name} first lays eyes on it at dusk
+2. Show the human weight: the exhausted faces of the 50 survivors looking to them for hope
+3. Reference the fractured world outside: Raiders circling like wolves, Trader caravans that demand too much, the Remnants and their strange knowledge
+4. End with the narrator passing the burden directly to the player: something like "Now it falls to you, {player_name}. What do you do first?"
+
+Tone: gritty shortwave radio broadcast, weathered and sardonic, but with a thread of desperate hope.
+Length: 200-250 words. Language: {lang_name} ONLY."""
 
         response = await self.client.aio.models.generate_content(
             model=self.model,
             contents=prompt,
             config=GenerateContentConfig(
-                system_instruction=f"You are the Narrator of Wasteland Chronicles.\n{LORE_SUMMARY}",
-                temperature=0.9,
-                max_output_tokens=250,
+                system_instruction=system_instruction,
+                temperature=0.88,
+                max_output_tokens=700,
             ),
         )
         return response.text.strip()

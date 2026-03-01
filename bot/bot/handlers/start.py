@@ -86,18 +86,22 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         narration = None
 
     if narration:
-        text = narration
+        intro_text = narration
     else:
-        text = get_text(
+        intro_text = get_text(
             "welcome", lang,
             name=user.first_name or "Survivor",
             settlement=settlement,
         )
 
-    text += "\n\n" + _format_mini_status(state, lang)
+    # Message 1: atmospheric intro — no buttons, just story
+    await update.message.reply_text(intro_text, parse_mode="Markdown")
 
+    # Message 2: tutorial guide + current status + action keyboard
+    guide = get_text("onboarding_guide", lang)
+    status = _format_mini_status(state, lang)
     await update.message.reply_text(
-        text,
+        f"{guide}\n\n{status}",
         reply_markup=_action_keyboard(lang),
         parse_mode="Markdown",
     )

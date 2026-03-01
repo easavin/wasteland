@@ -212,6 +212,49 @@ _STRINGS: dict[str, dict[str, str]] = {
             "У вас {max_turns} ходов/день. Премиум = безлимит."
         ),
     },
+    # --- Onboarding tutorial ---
+    "onboarding_guide": {
+        "en": (
+            "*Survivor's Field Guide*\n\n"
+            "You have *50 weeks* to build a settlement worth surviving for.\n\n"
+            "*Resources — watch these like your life depends on it:*\n"
+            "👥 *Population* — your people. If this hits 0, it's over.\n"
+            "🌾 *Food* — consumed every week. Two weeks at zero = collapse.\n"
+            "🔩 *Scrap* — metal, wire, salvage. Your build currency.\n"
+            "😊 *Morale* — keep it up or your people stop growing.\n"
+            "🛡 *Defense* — protection when the Raiders come knocking.\n\n"
+            "*Your weekly actions:*\n"
+            "🏗 *Build* — spend scrap to raise farms, workshops, walls, and more.\n"
+            "🔍 *Explore* — scavenge ruins for scrap. Risky. Worth it.\n"
+            "💰 *Trade* — swap scrap for food with passing caravans.\n"
+            "🛡 *Defend* — reinforce your walls before the next attack.\n"
+            "🤝 *Diplomacy* — negotiate with Raiders, Traders, or Remnants.\n"
+            "😴 *Rest* — let everyone breathe. Morale recovers.\n\n"
+            "*Win:* Reach Week 50 with 100+ population and 60+ morale.\n"
+            "*Lose:* Population hits 0, or you starve for 2 weeks running.\n\n"
+            "One action per week. Choose carefully."
+        ),
+        "ru": (
+            "*Полевое руководство выжившего*\n\n"
+            "У тебя *50 недель*, чтобы построить поселение, достойное выживания.\n\n"
+            "*Ресурсы — следи за ними, как за жизнью:*\n"
+            "👥 *Население* — твои люди. Упадёт до 0 — конец.\n"
+            "🌾 *Еда* — расходуется каждую неделю. Два хода без еды = крах.\n"
+            "🔩 *Хлам* — металл, провода, мусор. Твоя строительная валюта.\n"
+            "😊 *Мораль* — держи на уровне, иначе люди перестанут прибывать.\n"
+            "🛡 *Оборона* — защита, когда рейдеры придут постучать.\n\n"
+            "*Твои еженедельные действия:*\n"
+            "🏗 *Строить* — трать хлам на фермы, мастерские, стены и не только.\n"
+            "🔍 *Разведка* — рыскай по руинам в поисках хлама. Рискованно. Выгодно.\n"
+            "💰 *Торговля* — меняй хлам на еду у проходящих торговцев.\n"
+            "🛡 *Оборона* — укрепляй стены до следующего налёта.\n"
+            "🤝 *Дипломатия* — переговоры с Рейдерами, Торговцами или Остатками.\n"
+            "😴 *Отдых* — дай людям передышку. Мораль восстановится.\n\n"
+            "*Победа:* Дожить до недели 50 с 100+ населением и 60+ моралью.\n"
+            "*Поражение:* Население = 0, или голод два хода подряд.\n\n"
+            "Одно действие в неделю. Выбирай осторожно."
+        ),
+    },
     # --- Free text parsing ---
     "free_text_no_narrator": {
         "en": "I couldn't understand that. Use the action buttons or type: build, explore, trade, defend, diplomacy, rest.",
