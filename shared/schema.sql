@@ -101,7 +101,7 @@ CREATE TABLE payments (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     player_id       UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     payment_type    VARCHAR(20) NOT NULL
-                        CHECK (payment_type IN ('stars', 'cryptopay')),
+                        CHECK (payment_type IN ('stars')),
     status          VARCHAR(20) NOT NULL DEFAULT 'pending'
                         CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
     amount          DECIMAL(12, 2) NOT NULL,

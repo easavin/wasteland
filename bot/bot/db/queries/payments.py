@@ -21,7 +21,7 @@ async def create_payment(
 
     Args:
         player_id: The player's UUID.
-        payment_type: ``'stars'`` or ``'cryptopay'``.
+        payment_type: ``'stars'``.
         amount: Monetary amount (stored as ``DECIMAL(12,2)``).
         currency: ISO currency code, e.g. ``'XTR'``, ``'USDT'``.
         stars_amount: Number of Telegram Stars (only for ``stars`` payments).

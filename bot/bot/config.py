@@ -14,10 +14,6 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
 
-    # CryptoPay
-    cryptopay_api_token: str = ""
-    cryptopay_testnet: bool = True
-
     # Game config
     free_turns_per_day: int = 10
     premium_price_stars: int = 150
