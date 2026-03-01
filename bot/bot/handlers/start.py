@@ -233,7 +233,15 @@ async def handle_display_name_input(
     # Message 1: atmospheric intro
     await update.message.reply_text(intro_text, parse_mode="Markdown")
 
-    # Message 2: tutorial guide + current status + action keyboard
+    # Message 2: quick start suggestions (class-aware)
+    class_tip_key = f"quick_tip_{class_id}"
+    class_tip = get_text(class_tip_key, lang)
+    if class_tip == class_tip_key:  # fallback if key missing
+        class_tip = get_text("quick_tip_scavenger", lang)
+    quick = get_text("quick_onboarding", lang, class_tip=class_tip)
+    await update.message.reply_text(quick, parse_mode="Markdown")
+
+    # Message 3: tutorial guide + current status + action keyboard
     guide = get_text("onboarding_guide", lang)
     status = _format_mini_status(state, lang)
     await update.message.reply_text(

@@ -416,6 +416,43 @@ _STRINGS: dict[str, dict[str, str]] = {
             "У вас {max_turns} ходов/день. Премиум = безлимит."
         ),
     },
+    # --- Quick onboarding (first steps) ---
+    "quick_onboarding": {
+        "en": (
+            "🚀 *Quick start — try these first:*\n"
+            "• {class_tip}\n"
+            "• Build a farm — food runs out fast\n"
+            "• Say _rest_ when morale is low\n"
+            "• /chat — talk to other survivors in your world"
+        ),
+        "ru": (
+            "🚀 *Быстрый старт — попробуй первым:*\n"
+            "• {class_tip}\n"
+            "• Построй ферму — еда быстро кончается\n"
+            "• Напиши _отдых_ когда мораль низкая\n"
+            "• /chat — общайся с другими выжившими"
+        ),
+    },
+    "quick_tip_scavenger": {
+        "en": "Explore the ruins — you find bonus scrap",
+        "ru": "Исследуй руины — ты найдёшь больше хлама",
+    },
+    "quick_tip_warden": {
+        "en": "Fortify defenses — say _defend_ to strengthen walls",
+        "ru": "Укрепи оборону — напиши _оборона_ для стен",
+    },
+    "quick_tip_trader": {
+        "en": "Trade scrap for food — you get better deals",
+        "ru": "Меняй хлам на еду — у тебя лучшие условия",
+    },
+    "quick_tip_diplomat": {
+        "en": "Open diplomacy with a faction — raiders, traders, or remnants",
+        "ru": "Начни дипломатию с фракцией — рейдеры, торговцы или остатки",
+    },
+    "quick_tip_medic": {
+        "en": "Let people rest — you recover more morale and food",
+        "ru": "Дай людям отдохнуть — ты восстанавливаешь больше морали и еды",
+    },
     # --- Onboarding tutorial ---
     "onboarding_guide": {
         "en": (
