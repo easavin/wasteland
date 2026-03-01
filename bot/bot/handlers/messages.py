@@ -19,6 +19,32 @@ from bot.i18n import get_text
 
 logger = logging.getLogger(__name__)
 
+# Class name keywords that trigger class info cards (works without an active game)
+_CLASS_KEYWORDS: dict[str, str] = {
+    # English
+    "scavenger": "scavenger",
+    "warden": "warden",
+    "trader": "trader",
+    "diplomat": "diplomat",
+    "medic": "medic",
+    # Russian
+    "старатель": "scavenger",
+    "страж": "warden",
+    "торговец": "trader",
+    "дипломат": "diplomat",
+    "медик": "medic",
+}
+
+
+def _detect_class_query(text: str) -> str | None:
+    """Return the class_id if the message is asking about a specific class."""
+    words = re.findall(r'\w+', text.lower())
+    for word in words:
+        if word in _CLASS_KEYWORDS:
+            return _CLASS_KEYWORDS[word]
+    return None
+
+
 # Simple keyword mapping for when narrator is unavailable
 _KEYWORD_MAP = {
     # English
@@ -105,7 +131,24 @@ def _parse_keywords(text: str) -> tuple[str, str | None] | None:
 async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle non-command text messages as game actions."""
     pool = context.bot_data["db_pool"]
-    player = await get_player_by_telegram_id(pool, update.effective_user.id)
+    user = update.effective_user
+    text = update.message.text or ""
+    player = await get_player_by_telegram_id(pool, user.id)
+
+    # Detect class info queries — these work even before starting a game
+    class_id = _detect_class_query(text)
+    if class_id:
+        from bot.handlers.start import _detect_language
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        lang = player.get("language", "en") if player else _detect_language(user)
+        info_text = get_text(f"class_info_{class_id}", lang)
+        back_label = get_text("class_info_back", lang)
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton(back_label, callback_data="class_info:back"),
+        ]])
+        await update.message.reply_text(info_text, reply_markup=keyboard, parse_mode="Markdown")
+        return
+
     if not player:
         await update.message.reply_text(get_text("free_text_no_game", "en"))
         return
@@ -116,7 +159,6 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(get_text("free_text_no_game", lang))
         return
 
-    text = update.message.text or ""
     narrator = context.bot_data.get("narrator")
 
     # Try AI intent parsing first

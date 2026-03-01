@@ -61,12 +61,15 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
-    # No active game — present class selection
+    # No active game — show storytelling intro, then class selection
     await log_event(pool, player_id, "bot_start", {})
 
-    text = get_text("class_selection", lang)
     await update.message.reply_text(
-        text,
+        get_text("pre_class_intro", lang),
+        parse_mode="Markdown",
+    )
+    await update.message.reply_text(
+        get_text("class_selection", lang),
         reply_markup=_class_keyboard(lang),
         parse_mode="Markdown",
     )
@@ -206,7 +209,7 @@ def _format_mini_status(state: GameState, lang: str) -> str:
 
 
 def _class_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """Build a keyboard with one button per player class."""
+    """Build a keyboard with one row per class: select button + ℹ️ info button."""
     buttons = []
     for class_id, cls_info in PLAYER_CLASSES.items():
         emoji = cls_info["emoji"]
@@ -216,8 +219,42 @@ def _class_keyboard(lang: str) -> InlineKeyboardMarkup:
                 f"{emoji} {name}",
                 callback_data=f"class:{class_id}",
             ),
+            InlineKeyboardButton(
+                "ℹ️",
+                callback_data=f"info:{class_id}",
+            ),
         ])
     return InlineKeyboardMarkup(buttons)
+
+
+async def handle_class_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show detailed stats/pros/cons for a class, with a back button."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data or ""
+
+    pool = context.bot_data["db_pool"]
+    user = query.from_user
+    player = await get_player_by_telegram_id(pool, user.id)
+    lang = player.get("language", "en") if player else _detect_language(user)
+
+    if data.startswith("info:"):
+        class_id = data[5:]
+        if class_id not in PLAYER_CLASSES:
+            return
+        text = get_text(f"class_info_{class_id}", lang)
+        back_label = get_text("class_info_back", lang)
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton(back_label, callback_data="class_info:back"),
+        ]])
+        await query.message.reply_text(text, reply_markup=keyboard, parse_mode="Markdown")
+
+    elif data == "class_info:back":
+        await query.message.reply_text(
+            get_text("class_selection", lang),
+            reply_markup=_class_keyboard(lang),
+            parse_mode="Markdown",
+        )
 
 
 def _action_keyboard(lang: str) -> InlineKeyboardMarkup:

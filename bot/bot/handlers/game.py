@@ -91,6 +91,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await handle_class_selection(update, context)
         return
 
+    # Route class info / back to the start handler
+    if data.startswith("info:") or data.startswith("class_info:"):
+        from bot.handlers.start import handle_class_info
+        await handle_class_info(update, context)
+        return
+
     # Route skill upgrades to the skills handler
     if data.startswith("skill:"):
         from bot.handlers.skills import handle_skill_callback
@@ -262,10 +268,13 @@ async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await end_game(pool, str(game_row["id"]), "abandoned")
         await update.message.reply_text(get_text("new_game_abandoned", lang))
 
-    # Present class selection (same as /start with no active game)
-    text = get_text("class_selection", lang)
+    # Present class selection — intro first, then the selection keyboard
     await update.message.reply_text(
-        text,
+        get_text("pre_class_intro", lang),
+        parse_mode="Markdown",
+    )
+    await update.message.reply_text(
+        get_text("class_selection", lang),
         reply_markup=_class_keyboard(lang),
         parse_mode="Markdown",
     )
@@ -345,7 +354,7 @@ def _premium_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 
 def _class_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """Build a keyboard with one button per player class (reused in /newgame)."""
+    """Build a keyboard with one row per class: select button + ℹ️ info button."""
     from bot.engine.classes import PLAYER_CLASSES
     buttons = []
     for class_id, cls_info in PLAYER_CLASSES.items():
@@ -355,6 +364,10 @@ def _class_keyboard(lang: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 f"{emoji} {name}",
                 callback_data=f"class:{class_id}",
+            ),
+            InlineKeyboardButton(
+                "ℹ️",
+                callback_data=f"info:{class_id}",
             ),
         ])
     return InlineKeyboardMarkup(buttons)

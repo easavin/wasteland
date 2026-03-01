@@ -41,6 +41,32 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Неделя {turn}."
         ),
     },
+    "pre_class_intro": {
+        "en": (
+            "*\\*khhh\\* ... signal acquired ... \\*khhh\\**\n\n"
+            "You hear that? That's the sound of a shortwave radio finding its frequency.\n\n"
+            "You've been walking for weeks. Fifty souls behind you, "
+            "half-starved, carrying what's left of the old world on their backs. "
+            "But you found it — a ruin. Walls. A place that could become something.\n\n"
+            "I'm the Navigator. I've been watching this frequency, waiting "
+            "for someone worth talking to. Maybe that's you.\n\n"
+            "Before we go further — *who are you?*\n"
+            "Your past matters out here. It decides how you survive.\n\n"
+            "_Tap a class to select, or tap ℹ️ to learn more about each one._"
+        ),
+        "ru": (
+            "*\\*кшшш\\* ... сигнал пойман ... \\*кшшш\\**\n\n"
+            "Слышишь? Это коротковолновое радио нашло частоту.\n\n"
+            "Ты шёл(а) неделями. Пятьдесят душ за спиной, "
+            "полуголодных, тащат на себе обломки старого мира. "
+            "Но ты нашёл(а) это — руины. Стены. Место, которое может стать чем-то.\n\n"
+            "Я — Навигатор. Я слушал эту частоту, ждал "
+            "кого-то, с кем стоит говорить. Может, это ты.\n\n"
+            "Прежде чем продолжим — *кто ты?*\n"
+            "Твоё прошлое решает, как ты выживешь.\n\n"
+            "_Нажми на класс, чтобы выбрать, или ℹ️ чтобы узнать подробнее._"
+        ),
+    },
     "class_selection": {
         "en": (
             "Before you step into the Wasteland, choose who you are.\n\n"
@@ -60,6 +86,146 @@ _STRINGS: dict[str, dict[str, str]] = {
             "💊 *Медик* -- Полевой хирург, спасает людей\n\n"
             "Выбери свой путь:"
         ),
+    },
+    "class_info_scavenger": {
+        "en": (
+            "🔍 *Scavenger — Wasteland Salvage Expert*\n\n"
+            "*Strengths:*\n"
+            "  ✅ +20% scrap from exploring ruins\n"
+            "  ✅ +1 morale bonus when exploring\n"
+            "  ✅ Starts with extra scrap (110 vs 80)\n\n"
+            "*Weaknesses:*\n"
+            "  ❌ Starts with less food (90 vs 100)\n"
+            "  ❌ No combat or diplomatic bonuses\n\n"
+            "*Passive:* _Resourceful_ — every expedition brings back more.\n"
+            "*Best for:* Players who love exploring and building."
+        ),
+        "ru": (
+            "🔍 *Старатель — Мастер поиска в Пустоши*\n\n"
+            "*Сильные стороны:*\n"
+            "  ✅ +20% хлама при разведке руин\n"
+            "  ✅ +1 бонус морали при разведке\n"
+            "  ✅ Начинает с доп. хламом (110 vs 80)\n\n"
+            "*Слабые стороны:*\n"
+            "  ❌ Начинает с меньшим кол-вом еды (90 vs 100)\n"
+            "  ❌ Нет боевых или дипломатических бонусов\n\n"
+            "*Пассивка:* _Находчивость_ — каждая экспедиция приносит больше.\n"
+            "*Лучше всего для:* Игроков, которые любят исследовать и строить."
+        ),
+    },
+    "class_info_warden": {
+        "en": (
+            "🛡 *Warden — Military Discipline Leader*\n\n"
+            "*Strengths:*\n"
+            "  ✅ Defense decays slowly (-1/turn vs -3/turn)\n"
+            "  ✅ +5 extra defense when fortifying\n"
+            "  ✅ Starts with high defense (50) and morale (75)\n\n"
+            "*Weaknesses:*\n"
+            "  ❌ No economic bonuses\n"
+            "  ❌ Default starting food and scrap\n\n"
+            "*Passive:* _Fortified_ — your walls endure where others crumble.\n"
+            "*Best for:* Players who want a safe, well-defended settlement."
+        ),
+        "ru": (
+            "🛡 *Страж — Военный лидер*\n\n"
+            "*Сильные стороны:*\n"
+            "  ✅ Оборона падает медленнее (-1/ход vs -3/ход)\n"
+            "  ✅ +5 доп. обороны при укреплении\n"
+            "  ✅ Начинает с высокой обороной (50) и моралью (75)\n\n"
+            "*Слабые стороны:*\n"
+            "  ❌ Нет экономических бонусов\n"
+            "  ❌ Стандартный запас еды и хлама\n\n"
+            "*Пассивка:* _Укреплён_ — стены стоят там, где у других рушатся.\n"
+            "*Лучше всего для:* Игроков, предпочитающих безопасность."
+        ),
+    },
+    "class_info_trader": {
+        "en": (
+            "💰 *Trader — Caravan Boss*\n\n"
+            "*Strengths:*\n"
+            "  ✅ +10 extra food from every trade\n"
+            "  ✅ Trade costs less scrap (10 vs 15)\n"
+            "  ✅ Starts with Trader Guild rep +15\n"
+            "  ✅ Starts with extra food (120)\n\n"
+            "*Weaknesses:*\n"
+            "  ❌ Starts with less scrap (90 vs 80)\n"
+            "  ❌ No combat or exploration bonuses\n\n"
+            "*Passive:* _Connected_ — the caravans know your name.\n"
+            "*Best for:* Players who want a strong economy."
+        ),
+        "ru": (
+            "💰 *Торговец — Глава каравана*\n\n"
+            "*Сильные стороны:*\n"
+            "  ✅ +10 доп. еды за каждую сделку\n"
+            "  ✅ Торговля стоит меньше хлама (10 vs 15)\n"
+            "  ✅ Начинает с репутацией Гильдии Торговцев +15\n"
+            "  ✅ Начинает с доп. едой (120)\n\n"
+            "*Слабые стороны:*\n"
+            "  ❌ Начинает с меньшим хламом (90 vs 80)\n"
+            "  ❌ Нет боевых или разведывательных бонусов\n\n"
+            "*Пассивка:* _Связи_ — караваны знают твоё имя.\n"
+            "*Лучше всего для:* Игроков, строящих сильную экономику."
+        ),
+    },
+    "class_info_diplomat": {
+        "en": (
+            "🕊 *Diplomat — Smooth Talker*\n\n"
+            "*Strengths:*\n"
+            "  ✅ Diplomacy costs half the food (5 vs 10)\n"
+            "  ✅ +50% faction reputation gains\n"
+            "  ✅ +3 extra morale from diplomacy\n"
+            "  ✅ Starts with high morale (80) and pop (55)\n\n"
+            "*Weaknesses:*\n"
+            "  ❌ No combat or scrap bonuses\n"
+            "  ❌ Default starting food and defense\n\n"
+            "*Passive:* _Silver Tongue_ — words are your sharpest weapon.\n"
+            "*Best for:* Players who want to ally with factions fast."
+        ),
+        "ru": (
+            "🕊 *Дипломат — Мастер переговоров*\n\n"
+            "*Сильные стороны:*\n"
+            "  ✅ Дипломатия стоит вдвое меньше еды (5 vs 10)\n"
+            "  ✅ +50% к росту репутации фракций\n"
+            "  ✅ +3 доп. морали от дипломатии\n"
+            "  ✅ Начинает с высокой моралью (80) и населением (55)\n\n"
+            "*Слабые стороны:*\n"
+            "  ❌ Нет боевых и ресурсных бонусов\n"
+            "  ❌ Стандартный запас еды и обороны\n\n"
+            "*Пассивка:* _Серебряный язык_ — слова — твоё острейшее оружие.\n"
+            "*Лучше всего для:* Игроков, желающих быстро подружиться с фракциями."
+        ),
+    },
+    "class_info_medic": {
+        "en": (
+            "💊 *Medic — Field Surgeon*\n\n"
+            "*Strengths:*\n"
+            "  ✅ Survives 3 starvation turns (vs 2 for others)\n"
+            "  ✅ -1 population loss from dangerous events\n"
+            "  ✅ +5 morale and +3 food from resting\n"
+            "  ✅ Starts with extra pop (60) and food (110)\n\n"
+            "*Weaknesses:*\n"
+            "  ❌ No scrap, defense, or trade bonuses\n"
+            "  ❌ Default starting defense and morale\n\n"
+            "*Passive:* _Triage_ — your people die less. Period.\n"
+            "*Best for:* Players who want to keep their settlement alive."
+        ),
+        "ru": (
+            "💊 *Медик — Полевой хирург*\n\n"
+            "*Сильные стороны:*\n"
+            "  ✅ Выживает 3 хода голода (vs 2 у остальных)\n"
+            "  ✅ -1 потеря населения от опасных событий\n"
+            "  ✅ +5 морали и +3 еды от отдыха\n"
+            "  ✅ Начинает с доп. населением (60) и едой (110)\n\n"
+            "*Слабые стороны:*\n"
+            "  ❌ Нет бонусов к хламу, обороне или торговле\n"
+            "  ❌ Стандартная оборона и мораль\n\n"
+            "*Пассивка:* _Сортировка_ — твои люди умирают реже. Точка.\n"
+            "*Лучше всего для:* Игроков, которые хотят сохранить поселение живым."
+        ),
+    },
+    "class_info_back": {
+        "en": "↩️ Back to class selection",
+        "ru": "↩️ Назад к выбору класса",
     },
     "settlement_default_name": {
         "en": "{name}'s Haven",
