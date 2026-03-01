@@ -43,7 +43,7 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     "pre_class_intro": {
         "en": (
-            "*\\*khhh\\* ... signal acquired ... \\*khhh\\**\n\n"
+            "\\*khhh\\* ... signal acquired ... \\*khhh\\*\n\n"
             "You hear that? That's the sound of a shortwave radio finding its frequency.\n\n"
             "You've been walking for weeks. Fifty souls behind you, "
             "half-starved, carrying what's left of the old world on their backs. "
@@ -52,10 +52,10 @@ _STRINGS: dict[str, dict[str, str]] = {
             "for someone worth talking to. Maybe that's you.\n\n"
             "Before we go further — *who are you?*\n"
             "Your past matters out here. It decides how you survive.\n\n"
-            "_Tap a class to select, or tap ℹ️ to learn more about each one._"
+            "Tap a class to select, or tap ℹ️ to learn more about each one."
         ),
         "ru": (
-            "*\\*кшшш\\* ... сигнал пойман ... \\*кшшш\\**\n\n"
+            "\\*кшшш\\* ... сигнал пойман ... \\*кшшш\\*\n\n"
             "Слышишь? Это коротковолновое радио нашло частоту.\n\n"
             "Ты шёл(а) неделями. Пятьдесят душ за спиной, "
             "полуголодных, тащат на себе обломки старого мира. "
@@ -64,7 +64,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "кого-то, с кем стоит говорить. Может, это ты.\n\n"
             "Прежде чем продолжим — *кто ты?*\n"
             "Твоё прошлое решает, как ты выживешь.\n\n"
-            "_Нажми на класс, чтобы выбрать, или ℹ️ чтобы узнать подробнее._"
+            "Нажми на класс, чтобы выбрать, или ℹ️ чтобы узнать подробнее."
         ),
     },
     "class_selection": {
