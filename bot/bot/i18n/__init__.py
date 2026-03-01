@@ -215,40 +215,44 @@ _STRINGS: dict[str, dict[str, str]] = {
     # --- Onboarding tutorial ---
     "onboarding_guide": {
         "en": (
-            "*How to play*\n\n"
-            "Just *type what you want to do* — I understand plain language.\n\n"
-            "*Try something like:*\n"
-            "  · \"explore the old factory\"\n"
-            "  · \"build a farm\"\n"
-            "  · \"trade scrap for food\"\n"
-            "  · \"negotiate with the raiders\"\n"
-            "  · \"let the people rest this week\"\n\n"
-            "*Watch your resources:*\n"
-            "👥 Population · 🌾 Food · 🔩 Scrap · 😊 Morale · 🛡 Defense\n\n"
-            "*Win:* Reach Week 50 with 100+ people and 60+ morale.\n"
-            "*Lose:* Population hits 0, or food runs out for 2 weeks.\n\n"
-            "One decision per week. Press 📊 Status anytime to check in."
+            "*— The Navigator, back on the line: —*\n\n"
+            "\"Good. You can hear me. That's a start.\n\n"
+            "Just talk to me — plain language, no commands needed. "
+            "Ask questions, give orders, think out loud. I'll understand.\"\n\n"
+            "*Try saying something like:*\n"
+            "  · _\"where exactly are we?\"_\n"
+            "  · _\"what do you know about the raiders nearby?\"_\n"
+            "  · _\"I want to build a farm\"_\n"
+            "  · _\"send scouts to explore the ruins\"_\n"
+            "  · _\"open negotiations with the Trader Guild\"_\n"
+            "  · _\"let everyone rest this week\"_\n\n"
+            "You have 50 weeks. "
+            "Reach 100+ people and 60+ morale to win. "
+            "Run out of food for two weeks, or lose everyone — and it's over.\n\n"
+            "Press 📊 Status anytime. Now — what do you want to do first?"
         ),
         "ru": (
-            "*Как играть*\n\n"
-            "Просто *напиши что хочешь сделать* — я понимаю обычный текст.\n\n"
-            "*Попробуй что-нибудь вроде:*\n"
-            "  · \"исследовать старый завод\"\n"
-            "  · \"построить ферму\"\n"
-            "  · \"обменять хлам на еду\"\n"
-            "  · \"переговоры с рейдерами\"\n"
-            "  · \"дать людям отдохнуть на этой неделе\"\n\n"
-            "*Следи за ресурсами:*\n"
-            "👥 Население · 🌾 Еда · 🔩 Хлам · 😊 Мораль · 🛡 Оборона\n\n"
-            "*Победа:* Дожить до недели 50 с 100+ людьми и 60+ моралью.\n"
-            "*Поражение:* Население = 0, или голод два хода подряд.\n\n"
-            "Одно решение в неделю. Нажми 📊 Статус в любой момент."
+            "*— Навигатор снова в эфире: —*\n\n"
+            "\"Хорошо. Слышишь меня. Уже что-то.\n\n"
+            "Просто говори — обычным языком, никаких команд не надо. "
+            "Задавай вопросы, отдавай приказы, думай вслух. Я пойму.\"\n\n"
+            "*Попробуй написать что-нибудь вроде:*\n"
+            "  · _«где именно мы находимся?»_\n"
+            "  · _«что знаешь про рейдеров поблизости?»_\n"
+            "  · _«хочу построить ферму»_\n"
+            "  · _«разведчиков — в руины»_\n"
+            "  · _«начать переговоры с Торговой Гильдией»_\n"
+            "  · _«дать всем отдохнуть на этой неделе»_\n\n"
+            "У тебя 50 недель. "
+            "Доведи до 100+ людей и 60+ морали — победа. "
+            "Голод два хода или нет людей — конец.\n\n"
+            "Нажми 📊 Статус в любой момент. Ну — что делаем первым делом?"
         ),
     },
     # --- Free text parsing ---
     "free_text_no_narrator": {
-        "en": "I couldn't understand that. Use the action buttons or type: build, explore, trade, defend, diplomacy, rest.",
-        "ru": "Не удалось понять. Используйте кнопки или напишите: строить, разведка, торговля, оборона, дипломатия, отдых.",
+        "en": "I didn't catch that. Try: explore, build a farm, trade, defend, rest, or negotiate with raiders/traders/remnants.",
+        "ru": "Не понял. Попробуй: разведка, построить ферму, торговля, оборона, отдых, переговоры с рейдерами/торговцами/остатками.",
     },
     "free_text_no_game": {
         "en": "You don't have an active game. Send /start to begin!",

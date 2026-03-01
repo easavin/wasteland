@@ -155,21 +155,23 @@ CRITICAL RULES — NEVER BREAK THESE:
 - NEVER list actions or buttons — the game UI handles that
 - Write ONLY in {lang_name}"""
 
-        prompt = f"""Write a 200-250 word origin story for a new survivor who just arrived at the ruins
-that will become their settlement "{settlement_name}".
+        prompt = f"""Write a 180-220 word opening scene for a new survivor arriving at their future settlement.
 
-The survivor's name is {player_name}. They have led a desperate group of 50 people here after weeks
-of wandering the Wasteland. This place — crumbling structures, overgrown lots, the smell of old fire
-and rust — is their last chance.
+The survivor's name is {player_name}. They have led 50 desperate people here after weeks of wandering.
+The settlement will be called "{settlement_name}" — a ruin of crumbling concrete, overgrown lots, rusted steel.
 
-Structure your narration in this order:
-1. Set the scene: describe the desolate location as {player_name} first lays eyes on it at dusk
-2. Show the human weight: the exhausted faces of the 50 survivors looking to them for hope
-3. Reference the fractured world outside: Raiders circling like wolves, Trader caravans that demand too much, the Remnants and their strange knowledge
-4. End with the narrator passing the burden directly to the player: something like "Now it falls to you, {player_name}. What do you do first?"
+You are "the Navigator" — a weathered voice on a shortwave radio who has been watching this frequency,
+waiting for someone to make contact. You just picked up {player_name}'s signal.
 
-Tone: gritty shortwave radio broadcast, weathered and sardonic, but with a thread of desperate hope.
-Length: 200-250 words. Language: {lang_name} ONLY."""
+Structure in this order:
+1. The shortwave crackles to life — you (the Navigator) make first contact with {player_name}
+2. You describe what you can see from your vantage point: the ruin they've arrived at, the dusk light, the exhausted 50
+3. You briefly paint the danger outside: Raiders who smell weakness, the Trader Guild who'll bleed them dry, the Remnants with their strange offers
+4. End by asking {player_name} a direct question — something like "So. What's your first move?" or "The night is coming. What do you do?"
+
+Tone: sardonic, world-weary, but genuinely invested in this survivor making it.
+The Navigator has seen settlements rise and fall. This time feels different.
+Language: {lang_name} ONLY."""
 
         response = await self.client.aio.models.generate_content(
             model=self.model,
@@ -189,7 +191,7 @@ Length: 200-250 words. Language: {lang_name} ONLY."""
     async def parse_intent(self, text: str, language: str) -> dict | None:
         """Parse a free-text player message into a game action.
 
-        Returns {"action": str, "target": str|None} or None if unparseable.
+        Returns {"action": str, "target": str|None} or None if not a game action.
         """
         prompt = f"""The player sent this message in a post-apocalyptic settlement game:
 "{text}"
@@ -197,10 +199,10 @@ Length: 200-250 words. Language: {lang_name} ONLY."""
 Valid actions: build (target: farm/watchtower/workshop/barracks/shelter/clinic),
 explore, trade, defend, diplomacy (target: raiders/traders/remnants), rest
 
-Respond with ONLY valid JSON, no markdown:
+Output a single JSON object. If the message maps to a valid action use:
 {{"action": "action_name", "target": "target_or_null"}}
-
-If you cannot determine a valid action, respond: {{"action": null, "target": null}}"""
+If it does NOT map to any valid action use exactly:
+{{"action": null, "target": null}}"""
 
         try:
             response = await self.client.aio.models.generate_content(
@@ -208,19 +210,54 @@ If you cannot determine a valid action, respond: {{"action": null, "target": nul
                 contents=prompt,
                 config=GenerateContentConfig(
                     temperature=0.1,
-                    max_output_tokens=100,
+                    max_output_tokens=60,
+                    response_mime_type="application/json",
                 ),
             )
             text_resp = response.text.strip()
-            # Clean potential markdown wrapping
-            if text_resp.startswith("```"):
-                text_resp = text_resp.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            # Regex fallback: extract the first {...} block in case of extra text
+            if not text_resp.startswith("{"):
+                import re as _re
+                m = _re.search(r'\{[^}]*\}', text_resp)
+                text_resp = m.group() if m else text_resp
             result = json.loads(text_resp)
             if result.get("action"):
                 return result
         except Exception:
-            logger.exception("Intent parsing failed for: %s", text[:100])
+            logger.debug("Intent parsing failed for: %s", text[:100])
         return None
+
+    async def generate_aside(self, player_message: str, state, language: str) -> str:
+        """Generate a short in-character narrator reply to a non-action player message."""
+        lang_name = "Russian" if language == "ru" else "English"
+
+        prompt = f"""The player said: "{player_message}"
+
+You are the Navigator — a sardonic, world-weary shortwave radio voice who has survived 15 years
+in the Wasteland by being useful and honest. You are in contact with {state.settlement_name},
+week {state.turn_number}/50, {state.population} survivors.
+
+This message is NOT a game command — it's a question, observation, or comment.
+Respond in character: answer their question, share what you know about this world,
+or react to what they said. Be atmospheric, specific, grounded in the lore.
+End with a subtle nudge toward action — but don't be pushy.
+
+50-80 words. Language: {lang_name} ONLY."""
+
+        response = await self.client.aio.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=GenerateContentConfig(
+                system_instruction=(
+                    f"You are the Navigator of Wasteland Chronicles — a shortwave radio contact "
+                    f"who guides survivors from an unknown location.\n{LORE_SUMMARY}\n"
+                    f"Never break character. Respond ONLY in {lang_name}."
+                ),
+                temperature=0.85,
+                max_output_tokens=250,
+            ),
+        )
+        return response.text.strip()
 
     # ------------------------------------------------------------------
     # Voice transcription

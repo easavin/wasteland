@@ -10,6 +10,7 @@ from telegram.ext import ContextTypes
 
 from bot.db.queries.players import get_player_by_telegram_id
 from bot.db.queries.game_states import get_active_game
+from bot.engine.game_state import GameState
 from bot.handlers.game import _execute_turn
 from bot.i18n import get_text
 
@@ -116,7 +117,6 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     result = _parse_keywords(text)
     if result:
         action, target = result
-        # Update comm profile
         profiler = context.bot_data.get("profiler")
         if profiler:
             try:
@@ -127,5 +127,14 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _execute_turn(update.message, context, player, action, target)
         return
 
-    # No match
+    # Not a game action — if narrator is available, respond in-character
+    if narrator:
+        try:
+            state = GameState.from_db_row(game_row)
+            aside = await narrator.generate_aside(text, state, lang)
+            await update.message.reply_text(aside, parse_mode="Markdown")
+            return
+        except Exception:
+            logger.exception("Narrator aside failed")
+
     await update.message.reply_text(get_text("free_text_no_narrator", lang))
