@@ -5,7 +5,6 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: str = ""
-    admin_telegram_ids: list[int] = []
 
     # Database (Neon)
     database_url: str = ""
