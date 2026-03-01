@@ -135,6 +135,17 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     text = update.message.text or ""
     player = await get_player_by_telegram_id(pool, user.id)
 
+    # Intercept display name input (onboarding flow after class selection)
+    if player and context.user_data.get("awaiting_display_name"):
+        from bot.handlers.start import handle_display_name_input
+        created = await handle_display_name_input(
+            update, context, player, text,
+        )
+        if created:
+            return
+        # If not created, handle_display_name_input already replied (validation failed)
+        return
+
     # Detect class info queries — these work even before starting a game
     class_id = _detect_class_query(text)
     if class_id:

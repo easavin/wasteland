@@ -61,7 +61,8 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
-    # No active game — show storytelling intro, then class selection
+    # No active game — clear any stale onboarding state, show intro
+    context.user_data.pop("awaiting_display_name", None)
     await log_event(pool, player_id, "bot_start", {})
 
     await update.message.reply_text(
@@ -113,10 +114,72 @@ async def handle_class_selection(update: Update, context: ContextTypes.DEFAULT_T
         )
         return
 
-    # Create game with class-specific starting resources
+    # Store class selection and ask for display name
+    context.user_data["awaiting_display_name"] = class_id
+    await query.message.reply_text(
+        get_text("display_name_prompt", lang),
+        parse_mode="Markdown",
+    )
+    return
+
+
+async def handle_display_name_input(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    player: dict,
+    display_name: str,
+) -> bool:
+    """Process display name input and create game if valid.
+
+    Caller: messages.handle_free_text when user_data has awaiting_display_name.
+    Returns True if game was created, False otherwise.
+    """
+    pool = context.bot_data["db_pool"]
+    class_id = context.user_data.pop("awaiting_display_name", None)
+    if not class_id or class_id not in PLAYER_CLASSES:
+        return False
+
+    display_name = display_name.strip()
+    if len(display_name) < 2 or len(display_name) > 40:
+        lang = player.get("language", "en")
+        await update.message.reply_text(get_text("display_name_length", lang))
+        context.user_data["awaiting_display_name"] = class_id  # Retry
+        return False
+
+    # LLM moderation
+    narrator = context.bot_data.get("narrator")
+    if narrator:
+        try:
+            ok, _ = await narrator.validate_display_name(display_name, player.get("language", "en"))
+            if not ok:
+                lang = player.get("language", "en")
+                await update.message.reply_text(get_text("display_name_rejected", lang))
+                context.user_data["awaiting_display_name"] = class_id  # Retry
+                return False
+        except Exception:
+            logger.exception("Display name validation failed")
+            lang = player.get("language", "en")
+            await update.message.reply_text(get_text("display_name_rejected", lang))
+            context.user_data["awaiting_display_name"] = class_id
+            return False
+
+    player_id = str(player["id"])
+    lang = player.get("language", "en")
+    user = update.effective_user
+
+    # Resolve world_id (default world)
+    world_id = None
+    try:
+        from bot.db.queries.worlds import get_default_world
+        default_world = await get_default_world(pool)
+        if default_world:
+            world_id = str(default_world["id"])
+    except Exception:
+        pass
+
     settlement = get_text(
         "settlement_default_name", lang,
-        name=user.first_name or "Survivor",
+        name=display_name or user.first_name or "Survivor",
     )
     starting_resources = get_starting_resources(class_id)
     starting_rep = get_starting_rep_overrides(class_id)
@@ -124,6 +187,8 @@ async def handle_class_selection(update: Update, context: ContextTypes.DEFAULT_T
     game_row = await create_game(
         pool, player_id, settlement,
         player_class=class_id,
+        display_name=display_name,
+        world_id=world_id,
         **starting_resources,
         **starting_rep,
     )
@@ -144,7 +209,7 @@ async def handle_class_selection(update: Update, context: ContextTypes.DEFAULT_T
             narration = await narrator.generate_onboarding(
                 settlement_name=settlement,
                 language=lang,
-                player_name=user.first_name or "Survivor",
+                player_name=display_name or user.first_name or "Survivor",
                 player_class=class_id,
             )
         except Exception:
@@ -158,7 +223,7 @@ async def handle_class_selection(update: Update, context: ContextTypes.DEFAULT_T
     else:
         intro_text = get_text(
             "welcome", lang,
-            name=user.first_name or "Survivor",
+            name=display_name or user.first_name or "Survivor",
             settlement=settlement,
         )
 
@@ -166,16 +231,17 @@ async def handle_class_selection(update: Update, context: ContextTypes.DEFAULT_T
     intro_text += f"\n\n{cls_info['emoji']} *{cls_name}*"
 
     # Message 1: atmospheric intro
-    await query.message.reply_text(intro_text, parse_mode="Markdown")
+    await update.message.reply_text(intro_text, parse_mode="Markdown")
 
     # Message 2: tutorial guide + current status + action keyboard
     guide = get_text("onboarding_guide", lang)
     status = _format_mini_status(state, lang)
-    await query.message.reply_text(
+    await update.message.reply_text(
         f"{guide}\n\n{status}",
         reply_markup=_action_keyboard(lang),
         parse_mode="Markdown",
     )
+    return True
 
 
 def _format_mini_status(state: GameState, lang: str) -> str:
@@ -255,6 +321,52 @@ async def handle_class_info(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             reply_markup=_class_keyboard(lang),
             parse_mode="Markdown",
         )
+
+
+async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /name <new_name> — change display name (rate limited)."""
+    from datetime import date
+    pool = context.bot_data["db_pool"]
+    user = update.effective_user
+    text = " ".join((context.args or [])).strip()
+    player = await get_player_by_telegram_id(pool, user.id)
+    if not player:
+        await update.message.reply_text(get_text("free_text_no_game", "en"))
+        return
+
+    game_row = await get_active_game(pool, str(player["id"]))
+    if not game_row:
+        await update.message.reply_text(get_text("free_text_no_game", player.get("language", "en")))
+        return
+
+    if len(text) < 2 or len(text) > 40:
+        await update.message.reply_text(get_text("display_name_length", player.get("language", "en")))
+        return
+
+    # Rate limit: once per day
+    last_name_change = context.user_data.get("last_name_change_date")
+    if last_name_change == str(date.today()):
+        await update.message.reply_text(get_text("name_rate_limit", player.get("language", "en")))
+        return
+
+    narrator = context.bot_data.get("narrator")
+    if narrator:
+        try:
+            ok, _ = await narrator.validate_display_name(text, player.get("language", "en"))
+            if not ok:
+                await update.message.reply_text(get_text("display_name_rejected", player.get("language", "en")))
+                return
+        except Exception:
+            await update.message.reply_text(get_text("display_name_rejected", player.get("language", "en")))
+            return
+
+    from bot.db.queries.game_states import update_game_state
+    await update_game_state(pool, str(game_row["id"]), display_name=text)
+    context.user_data["last_name_change_date"] = str(date.today())
+    await update.message.reply_text(
+        get_text("name_updated", player.get("language", "en"), name=text),
+        parse_mode="Markdown",
+    )
 
 
 def _action_keyboard(lang: str) -> InlineKeyboardMarkup:

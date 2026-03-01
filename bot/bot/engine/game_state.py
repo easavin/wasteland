@@ -21,6 +21,8 @@ class GameState:
     status: str = "active"  # active | won | lost | abandoned
     turn_number: int = 0
     settlement_name: str = "Unnamed Settlement"
+    display_name: str | None = None
+    world_id: str | None = None
 
     # Player class
     player_class: str = ""  # scavenger | warden | trader | diplomat | medic
@@ -84,6 +86,8 @@ class GameState:
             "status",
             "turn_number",
             "settlement_name",
+            "display_name",
+            "world_id",
             "player_class",
             "population",
             "food",
@@ -108,7 +112,7 @@ class GameState:
                 data[key] = row[key]
 
         # UUID fields -> str
-        for uid_key in ("id", "player_id"):
+        for uid_key in ("id", "player_id", "world_id"):
             if uid_key in data and data[uid_key] is not None:
                 data[uid_key] = str(data[uid_key])
 

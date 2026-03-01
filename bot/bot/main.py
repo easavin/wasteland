@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from bot.config import settings
 from bot.db.pool import init_db_pool, close_db_pool
-from bot.handlers import start, game, help as help_handler, payment, voice, messages, skills, shop
+from bot.handlers import start, game, help as help_handler, payment, voice, messages, skills, shop, chat, guilds, trade, combat
 from bot.narrator.gemini_client import GeminiNarrator
 from bot.narrator.profiler import PlayerProfiler
 from bot.utils.logger import setup_logging
@@ -38,6 +38,10 @@ async def post_init(application) -> None:
         BotCommand("start",   "Start or resume your game"),
         BotCommand("newgame", "Abandon current game and start fresh"),
         BotCommand("status",  "Check your settlement status"),
+        BotCommand("chat",    "Global chat"),
+        BotCommand("guild",   "Guild commands"),
+        BotCommand("market",  "Marketplace"),
+        BotCommand("challenge", "PvP challenge"),
         BotCommand("skills",  "View and upgrade skills"),
         BotCommand("shop",    "Spend gold on supplies"),
         BotCommand("help",    "How to play"),
@@ -90,6 +94,19 @@ def main() -> None:
     app.add_handler(CommandHandler("skills", skills.handle_skills))
     app.add_handler(CommandHandler("shop", shop.handle_shop))
     app.add_handler(CommandHandler("language", help_handler.handle_language))
+    app.add_handler(CommandHandler("name", start.handle_name))
+
+    # --- Shared world: chat, guilds, market, combat ---
+    app.add_handler(CommandHandler("chat", chat.handle_chat))
+    app.add_handler(CommandHandler("zone", chat.handle_zone_chat))
+    app.add_handler(CommandHandler("guild", guilds.handle_guild))
+    app.add_handler(CommandHandler("whisper", chat.handle_whisper))
+    app.add_handler(CommandHandler("chatlog", chat.handle_chatlog))
+    app.add_handler(CommandHandler("market", trade.handle_market))
+    app.add_handler(CommandHandler("trade", trade.handle_trade))
+    app.add_handler(CommandHandler("challenge", combat.handle_challenge))
+    app.add_handler(CommandHandler("challengeaccept", combat.handle_challenge_accept))
+    app.add_handler(CommandHandler("challengedecline", combat.handle_challenge_decline))
 
     # --- Callback queries (inline keyboard buttons) ---
     app.add_handler(CallbackQueryHandler(game.handle_callback))

@@ -386,6 +386,63 @@ End with a natural nudge toward action — suggest something relevant to their s
         return response.text.strip()
 
     # ------------------------------------------------------------------
+    # Display name moderation
+    # ------------------------------------------------------------------
+
+    async def validate_display_name(self, text: str, language: str) -> tuple[bool, str | None]:
+        """Check if a display name is appropriate.
+
+        Returns (ok, rejection_reason). Reject if: profanity, slurs,
+        offensive content, impersonation attempts. Never return the
+        actual offensive content in the reason.
+        """
+        lang_name = "Russian" if language == "ru" else "English"
+        prompt = f"""You are a content moderator for a post-apocalyptic multiplayer game.
+
+A player wants to use this as their display name (how other survivors will see them): "{text}"
+
+Check if the name is appropriate. REJECT if it contains:
+- Profanity, swears, or vulgarity (in any language: English, Russian, etc.)
+- Slurs or hate speech
+- Offensive or derogatory content
+- Impersonation of real people
+- Spam-like content (repeated characters, etc.)
+
+ALLOW:
+- Creative/fantasy names (e.g. "Commander Rex", "DustWalker", "Rust")
+- Numbers if not offensive (e.g. "Scout47")
+- Spaces and hyphens
+- Non-Latin scripts if appropriate
+
+Respond with ONLY valid JSON, no markdown:
+{{"ok": true}} if acceptable
+{{"ok": false, "reason": "generic"}} if not acceptable — "reason" must be a generic phrase like "inappropriate" or "contains prohibited content", NEVER repeat the offensive text."""
+
+        try:
+            response = await self.client.aio.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=GenerateContentConfig(
+                    temperature=0.0,
+                    max_output_tokens=80,
+                    response_mime_type="application/json",
+                    thinking_config=ThinkingConfig(thinking_budget=0),
+                ),
+            )
+            text_resp = response.text.strip()
+            if not text_resp.startswith("{"):
+                import re as _re
+                m = _re.search(r'\{[^}]*\}', text_resp)
+                text_resp = m.group() if m else text_resp
+            result = json.loads(text_resp)
+            ok = result.get("ok", False)
+            reason = result.get("reason") if not ok else None
+            return (ok, reason)
+        except Exception:
+            logger.exception("Display name validation failed — defaulting to reject")
+            return (False, "validation_error")
+
+    # ------------------------------------------------------------------
     # Voice transcription
     # ------------------------------------------------------------------
 

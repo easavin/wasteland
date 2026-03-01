@@ -24,6 +24,7 @@ _UPDATABLE_COLUMNS = frozenset({
     "status",
     "turn_number",
     "settlement_name",
+    "display_name",
     "player_class",
     "population",
     "food",
@@ -59,6 +60,8 @@ async def create_game(
     settlement_name: str,
     *,
     player_class: str = "",
+    display_name: str | None = None,
+    world_id: str | None = None,
     population: int = 50,
     food: int = 100,
     scrap: int = 80,
@@ -79,15 +82,18 @@ async def create_game(
         """
         INSERT INTO game_states (
             player_id, settlement_name, player_class,
+            display_name, world_id,
             population, food, scrap, morale, defense, gold,
             raiders_rep, traders_rep, remnants_rep
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING *
         """,
         player_id,
         settlement_name,
         player_class,
+        display_name,
+        world_id,
         population,
         food,
         scrap,
@@ -166,6 +172,69 @@ async def update_game_state(
     )
 
     await pool.execute(query, *values)
+
+
+async def get_settlement_by_id(
+    pool: asyncpg.Pool,
+    game_id: str,
+) -> dict | None:
+    """Return a game_states row by ID for cross-player lookups."""
+    row = await pool.fetchrow(
+        "SELECT * FROM game_states WHERE id = $1",
+        game_id,
+    )
+    return dict(row) if row else None
+
+
+async def get_settlements_in_zone(
+    pool: asyncpg.Pool,
+    world_id: str | None,
+    zone: int,
+) -> list[dict]:
+    """Return active settlements in a world+zone for chat/broadcast."""
+    if world_id:
+        rows = await pool.fetch(
+            """
+            SELECT gs.*, p.telegram_id, p.username, p.first_name
+              FROM game_states gs
+              JOIN players p ON p.id = gs.player_id
+             WHERE gs.world_id = $1
+               AND gs.zone = $2
+               AND gs.status = 'active'
+            """,
+            world_id,
+            zone,
+        )
+    else:
+        rows = await pool.fetch(
+            """
+            SELECT gs.*, p.telegram_id, p.username, p.first_name
+              FROM game_states gs
+              JOIN players p ON p.id = gs.player_id
+             WHERE gs.zone = $1
+               AND gs.status = 'active'
+            """,
+            zone,
+        )
+    return [dict(r) for r in rows]
+
+
+async def get_settlements_in_world(
+    pool: asyncpg.Pool,
+    world_id: str,
+) -> list[dict]:
+    """Return all active settlements in a world (for global chat broadcast)."""
+    rows = await pool.fetch(
+        """
+        SELECT gs.*, p.telegram_id, p.username, p.first_name
+          FROM game_states gs
+          JOIN players p ON p.id = gs.player_id
+         WHERE gs.world_id = $1
+           AND gs.status = 'active'
+        """,
+        world_id,
+    )
+    return [dict(r) for r in rows]
 
 
 async def end_game(

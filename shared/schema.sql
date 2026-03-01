@@ -1,6 +1,16 @@
 -- Wasteland Chronicles - Database Schema (Neon Postgres)
+-- Run migrations in shared/migrations/ for incremental updates.
+-- This file reflects the target schema after all migrations.
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- WORLDS (realms for sharding)
+CREATE TABLE IF NOT EXISTS worlds (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name            VARCHAR(100) NOT NULL,
+    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- PLAYERS
 CREATE TABLE players (
@@ -30,6 +40,8 @@ CREATE TABLE game_states (
                         CHECK (status IN ('active', 'won', 'lost', 'abandoned')),
     turn_number     INT NOT NULL DEFAULT 0,
     settlement_name VARCHAR(100) NOT NULL,
+    display_name    VARCHAR(40),
+    world_id        UUID REFERENCES worlds(id) ON DELETE SET NULL,
 
     player_class    VARCHAR(20) NOT NULL DEFAULT '',
 

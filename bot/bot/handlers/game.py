@@ -109,6 +109,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await handle_shop_callback(update, context)
         return
 
+    # Route combat challenge accept/decline
+    if data.startswith("challenge:"):
+        from bot.handlers.combat import handle_challenge_callback
+        await handle_challenge_callback(update, context)
+        return
+
     pool = context.bot_data["db_pool"]
     player = await get_player_by_telegram_id(pool, query.from_user.id)
     if not player:
