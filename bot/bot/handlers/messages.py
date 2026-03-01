@@ -6,6 +6,7 @@ import logging
 import re
 
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from bot.db.queries.players import get_player_by_telegram_id
@@ -100,6 +101,15 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         try:
             parsed = await narrator.parse_intent(text, lang)
             if parsed and parsed.get("action"):
+                action = parsed["action"]
+                target = parsed.get("target") or None
+
+                # If AI returned "build" without a target, try keyword fallback
+                if action == "build" and not target:
+                    kw_result = _parse_keywords(text)
+                    if kw_result and kw_result[0] == "build" and kw_result[1]:
+                        target = kw_result[1]
+
                 # Update comm profile from this message
                 profiler = context.bot_data.get("profiler")
                 if profiler:
@@ -107,7 +117,7 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
                 await _execute_turn(
                     update.message, context, player,
-                    parsed["action"], parsed.get("target"),
+                    action, target,
                 )
                 return
         except Exception:
@@ -132,7 +142,10 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         try:
             state = GameState.from_db_row(game_row)
             aside = await narrator.generate_aside(text, state, lang)
-            await update.message.reply_text(aside, parse_mode="Markdown")
+            try:
+                await update.message.reply_text(aside, parse_mode="Markdown")
+            except BadRequest:
+                await update.message.reply_text(aside)
             return
         except Exception:
             logger.exception("Narrator aside failed")

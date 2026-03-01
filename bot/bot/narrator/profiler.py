@@ -136,7 +136,15 @@ class PlayerProfiler:
 
         Also persists the update to the database.
         """
-        profile = dict(current_profile or {})
+        if isinstance(current_profile, str):
+            try:
+                profile = json.loads(current_profile)
+            except (json.JSONDecodeError, TypeError):
+                profile = {}
+        elif isinstance(current_profile, dict):
+            profile = dict(current_profile)
+        else:
+            profile = {}
 
         # Analyze current message
         vocab_score = _analyze_vocabulary(text)

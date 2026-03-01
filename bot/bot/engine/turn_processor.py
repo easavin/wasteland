@@ -149,7 +149,7 @@ async def _persist_turn(
             await conn.execute(
                 """
                 UPDATE game_states
-                   SET status          = $1,
+                   SET status          = $1::varchar,
                        turn_number     = $2,
                        population      = $3,
                        food            = $4,
@@ -168,7 +168,7 @@ async def _persist_turn(
                        active_effects  = $17::jsonb,
                        narrator_memory = $18::jsonb,
                        updated_at      = NOW(),
-                       ended_at        = CASE WHEN $1::text IN ('won','lost') THEN NOW() ELSE ended_at END
+                       ended_at        = CASE WHEN $1::varchar IN ('won','lost') THEN NOW() ELSE ended_at END
                  WHERE id = $19
                 """,
                 state.status,

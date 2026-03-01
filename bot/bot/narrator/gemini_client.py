@@ -149,13 +149,13 @@ settlement survival game. You speak as a weathered survivor broadcasting on a cr
 {LORE_SUMMARY}
 
 CRITICAL RULES — NEVER BREAK THESE:
-- Write PURE atmospheric narrative storytelling ONLY
-- NEVER mention game mechanics, stats, numbers, turns, resources, or game systems
+- Write atmospheric narrative storytelling — no raw stats, no UI instructions
 - NEVER include lines like "population: X" or "food: Y" or "turn 1/50"
-- NEVER list actions or buttons — the game UI handles that
+- NEVER list buttons or mention game UI
+- Practical guidance must come from the Navigator's voice, as advice from a survivor
 - Write ONLY in {lang_name}"""
 
-        prompt = f"""Write a 180-220 word opening scene for a new survivor arriving at their future settlement.
+        prompt = f"""Write a 250-320 word opening scene for a new survivor arriving at their future settlement.
 
 The survivor's name is {player_name}. They have led 50 desperate people here after weeks of wandering.
 The settlement will be called "{settlement_name}" — a ruin of crumbling concrete, overgrown lots, rusted steel.
@@ -164,13 +164,22 @@ You are "the Navigator" — a weathered voice on a shortwave radio who has been 
 waiting for someone to make contact. You just picked up {player_name}'s signal.
 
 Structure in this order:
-1. The shortwave crackles to life — you (the Navigator) make first contact with {player_name}
-2. You describe what you can see from your vantage point: the ruin they've arrived at, the dusk light, the exhausted 50
-3. You briefly paint the danger outside: Raiders who smell weakness, the Trader Guild who'll bleed them dry, the Remnants with their strange offers
-4. End by asking {player_name} a direct question — something like "So. What's your first move?" or "The night is coming. What do you do?"
+1. OPENING (3-4 sentences): The shortwave crackles to life — you (the Navigator) make first contact with {player_name}. Describe what you see from your vantage point: the ruin they've arrived at, the dusk light, the exhausted 50.
+
+2. THE WORLD (3-4 sentences): Paint the dangers — Raiders who smell weakness, the Trader Guild who'll bleed them dry, the Remnants with their strange knowledge. Make it vivid and specific, not a list.
+
+3. PRACTICAL GUIDANCE (4-5 sentences): The Navigator shares hard-won survival wisdom naturally, as advice between survivors. Work these into the narrative:
+   - Food runs out fast — they need farms, and soon
+   - The ruins nearby are full of useful scrap — worth sending scouts
+   - Walls won't build themselves, and Raiders test the weak
+   - The factions can be allies or enemies — depends on how {player_name} plays it
+   - Sometimes the best move is to let people rest and recover
+   - Just talk — say what you want to do in plain words, the Navigator will understand
+
+4. CLOSING (1-2 sentences): End with a direct question to {player_name} — draw them into their first decision. Make it feel urgent but not overwhelming.
 
 Tone: sardonic, world-weary, but genuinely invested in this survivor making it.
-The Navigator has seen settlements rise and fall. This time feels different.
+The Navigator has seen settlements rise and fall. This time feels different — maybe.
 Language: {lang_name} ONLY."""
 
         response = await self.client.aio.models.generate_content(
@@ -179,7 +188,7 @@ Language: {lang_name} ONLY."""
             config=GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.88,
-                max_output_tokens=700,
+                max_output_tokens=900,
             ),
         )
         return response.text.strip()
@@ -196,13 +205,21 @@ Language: {lang_name} ONLY."""
         prompt = f"""The player sent this message in a post-apocalyptic settlement game:
 "{text}"
 
-Valid actions: build (target: farm/watchtower/workshop/barracks/shelter/clinic),
-explore, trade, defend, diplomacy (target: raiders/traders/remnants), rest
+Valid actions and their targets:
+- build — MUST have a target: farm, watchtower, workshop, barracks, shelter, clinic
+  Examples: "build a farm" → action=build, target=farm; "I want to construct a watchtower" → action=build, target=watchtower
+- explore — no target needed
+- trade — no target needed
+- defend — no target needed
+- diplomacy — optional target: raiders, traders, remnants
+- rest — no target needed
 
-Output a single JSON object. If the message maps to a valid action use:
+Output a single JSON object. If the message maps to a valid action:
 {{"action": "action_name", "target": "target_or_null"}}
-If it does NOT map to any valid action use exactly:
-{{"action": null, "target": null}}"""
+If it does NOT map to any valid action:
+{{"action": null, "target": null}}
+
+IMPORTANT: For "build", always extract the building type from the message as the target."""
 
         try:
             response = await self.client.aio.models.generate_content(
@@ -231,18 +248,49 @@ If it does NOT map to any valid action use exactly:
         """Generate a short in-character narrator reply to a non-action player message."""
         lang_name = "Russian" if language == "ru" else "English"
 
+        # Build rich context about the settlement
+        buildings_desc = "no buildings yet"
+        if state.buildings:
+            buildings_desc = ", ".join(
+                f"{name} x{count}" for name, count in state.buildings.items() if count > 0
+            )
+
+        memory_text = ""
+        if state.narrator_memory:
+            memory_text = "\n\nRecent events (use these to maintain narrative continuity):\n" + "\n".join(state.narrator_memory[-5:])
+
         prompt = f"""The player said: "{player_message}"
 
-You are the Navigator — a sardonic, world-weary shortwave radio voice who has survived 15 years
-in the Wasteland by being useful and honest. You are in contact with {state.settlement_name},
-week {state.turn_number}/50, {state.population} survivors.
+CURRENT SETTLEMENT STATE — use this to give informed, specific answers:
+- Settlement: {state.settlement_name}
+- Week: {state.turn_number}/50
+- Population: {state.population} survivors
+- Food: {state.food} (consumed each week — runs out = starvation)
+- Scrap: {state.scrap} (building material and trade currency)
+- Morale: {state.morale}/100
+- Defense: {state.defense}/100
+- Buildings: {buildings_desc}
+- Faction relations: Raiders {state.raiders_rep:+d} ({self._rep_label(state.raiders_rep)}), Traders {state.traders_rep:+d} ({self._rep_label(state.traders_rep)}), Remnants {state.remnants_rep:+d} ({self._rep_label(state.remnants_rep)})
+{memory_text}
+
+WHAT THE PLAYER CAN DO (reference naturally when relevant):
+- Build structures: farm (food), watchtower (defense), workshop (scrap), barracks (defense), shelter (morale), clinic (morale + population)
+- Send scouts to explore the ruins for scrap
+- Trade scrap for food with passing caravans
+- Fortify defenses against raids
+- Negotiate with factions: Raiders, Trader Guild, Remnants
+- Let the settlement rest to recover morale
 
 This message is NOT a game command — it's a question, observation, or comment.
-Respond in character: answer their question, share what you know about this world,
-or react to what they said. Be atmospheric, specific, grounded in the lore.
-End with a subtle nudge toward action — but don't be pushy.
+Respond in character as the Navigator. Be SPECIFIC and USEFUL:
+- If they ask "where am I?" — describe the settlement's location, the ruins, what surrounds them
+- If they ask about factions — share what you know from lore, their current relations
+- If they ask "what can I do?" — describe their options as practical survival advice
+- If they ask about the world — draw from the lore, be vivid and detailed
+Always ground your answer in the actual settlement state and lore.
+End with a natural nudge toward action — suggest something relevant to their situation.
 
-50-80 words. Language: {lang_name} ONLY."""
+100-150 words. Language: {lang_name} ONLY."""
 
         response = await self.client.aio.models.generate_content(
             model=self.model,
@@ -250,11 +298,15 @@ End with a subtle nudge toward action — but don't be pushy.
             config=GenerateContentConfig(
                 system_instruction=(
                     f"You are the Navigator of Wasteland Chronicles — a shortwave radio contact "
-                    f"who guides survivors from an unknown location.\n{LORE_SUMMARY}\n"
-                    f"Never break character. Respond ONLY in {lang_name}."
+                    f"who guides survivors from an unknown location. You have been watching this "
+                    f"settlement and know its situation intimately.\n\n{LORE_SUMMARY}\n\n"
+                    f"{FACTION_LORE.get('raiders', '')}\n{FACTION_LORE.get('traders', '')}\n"
+                    f"{FACTION_LORE.get('remnants', '')}\n\n"
+                    f"Never break character. Give specific, grounded answers — not vague deflections. "
+                    f"Respond ONLY in {lang_name}."
                 ),
                 temperature=0.85,
-                max_output_tokens=250,
+                max_output_tokens=400,
             ),
         )
         return response.text.strip()

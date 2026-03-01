@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from bot.config import settings
@@ -26,13 +27,18 @@ async def _reply(query_or_message, text: str, **kwargs) -> None:
 
     Accepts either a Message or a CallbackQuery as the first argument.
     This keeps the chat history intact so narration accumulates as a log.
+    If Markdown parsing fails, retries without parse_mode.
     """
-    if hasattr(query_or_message, "message"):
-        # CallbackQuery — reply to the message the button was attached to
-        await query_or_message.message.reply_text(text, **kwargs)
-    else:
-        # Plain Message (text command, voice, etc.)
-        await query_or_message.reply_text(text, **kwargs)
+    target = query_or_message.message if hasattr(query_or_message, "message") else query_or_message
+    try:
+        await target.reply_text(text, **kwargs)
+    except BadRequest as e:
+        if "parse entities" in str(e).lower() or "can't parse" in str(e).lower():
+            logger.warning("Markdown parse failed, retrying without parse_mode: %s", e)
+            kwargs.pop("parse_mode", None)
+            await target.reply_text(text, **kwargs)
+        else:
+            raise
 
 
 # ------------------------------------------------------------------
@@ -241,16 +247,22 @@ async def handle_new_game(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         name=user.first_name or "Survivor",
         settlement=settlement,
     )
-    await update.message.reply_text(intro_text, parse_mode="Markdown")
 
-    # Message 2: tutorial guide + current status + status button
-    guide = get_text("onboarding_guide", lang)
+    # Append mini status to the intro so the player sees resources at a glance
     status = _format_mini_status(state, lang)
-    await update.message.reply_text(
-        f"{guide}\n\n{status}",
-        reply_markup=_status_keyboard(lang),
-        parse_mode="Markdown",
-    )
+    full_text = f"{intro_text}\n\n{status}"
+
+    try:
+        await update.message.reply_text(
+            full_text,
+            reply_markup=_status_keyboard(lang),
+            parse_mode="Markdown",
+        )
+    except BadRequest:
+        await update.message.reply_text(
+            full_text,
+            reply_markup=_status_keyboard(lang),
+        )
 
 
 
