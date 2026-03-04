@@ -367,6 +367,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "/start -- Begin or resume your game\n"
             "/status -- View settlement status\n"
             "/newgame -- Start a new game (abandons current)\n"
+            "/npc -- Play minigames with NPCs\n"
             "/help -- Show this help\n\n"
             "*Actions (type in chat):*\n"
             "Build -- Construct buildings (costs scrap)\n"
@@ -394,6 +395,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "/start -- Начать или продолжить игру\n"
             "/status -- Посмотреть статус поселения\n"
             "/newgame -- Начать новую игру (текущая будет брошена)\n"
+            "/npc -- Мини-игры с NPC\n"
             "/help -- Показать справку\n\n"
             "*Действия (пишите в чат):*\n"
             "Строить -- Возводить постройки (стоит хлам)\n"
@@ -626,6 +628,231 @@ _STRINGS: dict[str, dict[str, str]] = {
     # --- Display name ---
     "name_updated": {"en": "Display name updated to *{name}*.", "ru": "Имя изменено на *{name}*."},
     "name_rate_limit": {"en": "You can change your name once per day.", "ru": "Имя можно менять раз в день."},
+
+    # ── NPC Minigames (general) ──
+    "npc_no_npcs": {"en": "No NPCs nearby.", "ru": "Поблизости нет NPC."},
+    "npc_no_games": {"en": "No minigames available here.", "ru": "Здесь нет мини-игр."},
+    "npc_not_found": {"en": "That NPC isn't around here.", "ru": "Этого NPC здесь нет."},
+    "npc_game_expired": {"en": "That game session has expired. Start a new one with /npc.", "ru": "Сессия игры истекла. Начните новую через /npc."},
+    "npc_cooldown": {
+        "en": "They're busy. Come back in {mins}m {secs}s.",
+        "ru": "Они заняты. Возвращайтесь через {mins}м {secs}с.",
+    },
+    "npc_games_header": {
+        "en": (
+            "🎮 *NPC Encounters*\n\n"
+            "Play a minigame with a local NPC to earn rewards.\n"
+            "Choose who to visit:"
+        ),
+        "ru": (
+            "🎮 *Встречи с NPC*\n\n"
+            "Сыграйте в мини-игру с местным NPC и получите награды.\n"
+            "Выберите, к кому пойти:"
+        ),
+    },
+    "npc_game_name_scrap_roulette": {"en": "Scrap Roulette", "ru": "Хлам-Рулетка"},
+    "npc_game_name_field_triage": {"en": "Field Triage", "ru": "Полевая Сортировка"},
+    "npc_game_name_perimeter_breach": {"en": "Perimeter Breach", "ru": "Прорыв Периметра"},
+
+    # ── Scrap Roulette (Old Trader) ──
+    "roulette_no_scrap": {
+        "en": "Old Trader squints at you. \"No scrap, no game. You need {cost} 🔩, got {have}.\"",
+        "ru": "Старый Торговец щурится. \"Нет хлама — нет игры. Нужно {cost} 🔩, у тебя {have}.\"",
+    },
+    "roulette_intro": {
+        "en": (
+            "🏪 *Old Trader's Scrap Roulette*\n\n"
+            "The trader slaps three dusty crates on the counter.\n\n"
+            "\"Pick one. Could be treasure, could be trash. "
+            "Costs you {cost} 🔩 scrap to play.\"\n\n"
+            "Choose a crate:"
+        ),
+        "ru": (
+            "🏪 *Хлам-Рулетка Старого Торговца*\n\n"
+            "Торговец шлёпает три пыльных ящика на прилавок.\n\n"
+            "\"Выбирай. Может сокровище, может мусор. "
+            "Стоит {cost} 🔩 хлама.\"\n\n"
+            "Выберите ящик:"
+        ),
+    },
+    "roulette_crate_jackpot": {"en": "Jackpot! Pre-war tech cache", "ru": "Джекпот! Довоенный тайник"},
+    "roulette_crate_good": {"en": "Nice find — tools & rations", "ru": "Неплохо — инструменты и пайки"},
+    "roulette_crate_decent": {"en": "Decent — some useful parts", "ru": "Сойдёт — полезные запчасти"},
+    "roulette_crate_junk": {"en": "Junk — rusty screws", "ru": "Мусор — ржавые гвозди"},
+    "roulette_crate_trap": {"en": "Booby-trapped! Explosion!", "ru": "Заминировано! Взрыв!"},
+    "roulette_crate_empty": {"en": "Empty — nothing but dust", "ru": "Пусто — одна пыль"},
+    "roulette_nothing": {"en": "nothing gained, nothing lost", "ru": "ни выигрыша, ни потерь"},
+    "roulette_result": {
+        "en": (
+            "🏪 You picked crate *{picked}* — {emoji} *{content}*\n\n"
+            "All crates revealed:\n{reveal}\n\n"
+            "📊 {deltas}"
+        ),
+        "ru": (
+            "🏪 Вы выбрали ящик *{picked}* — {emoji} *{content}*\n\n"
+            "Все ящики:\n{reveal}\n\n"
+            "📊 {deltas}"
+        ),
+    },
+
+    # ── Field Triage (Doc) ──
+    "triage_intro": {
+        "en": (
+            "💊 *Doc's Field Triage*\n\n"
+            "Doc wipes blood off her hands. \"Got {rounds} patients. "
+            "Help me diagnose them — right call saves lives, wrong one... doesn't.\"\n\n"
+            "Get ready."
+        ),
+        "ru": (
+            "💊 *Полевая Сортировка Дока*\n\n"
+            "Док вытирает кровь с рук. \"{rounds} пациента ждут. "
+            "Помоги поставить диагноз — правильный ответ спасёт жизни, неправильный... нет.\"\n\n"
+            "Приготовьтесь."
+        ),
+    },
+    "triage_patient": {
+        "en": "💊 *Patient {round}/{total}*\n\n{symptom}\n\nChoose treatment:",
+        "ru": "💊 *Пациент {round}/{total}*\n\n{symptom}\n\nВыберите лечение:",
+    },
+    "triage_case_radiation": {
+        "en": "Patient shows hair loss, bleeding gums, severe fatigue. Geiger counter is clicking.",
+        "ru": "Выпадение волос, кровоточащие дёсны, сильная усталость. Счётчик Гейгера трещит.",
+    },
+    "triage_case_broken_leg": {
+        "en": "Survivor dragged in with a twisted, swollen leg. Can't put weight on it. Bone visible through skin.",
+        "ru": "Выжившего притащили с опухшей ногой. Не может встать. Кость видна сквозь кожу.",
+    },
+    "triage_case_fever": {
+        "en": "High fever, chills, infected wound on the arm. Red streaks spreading from the cut.",
+        "ru": "Высокая температура, озноб, инфицированная рана на руке. Красные полосы от пореза.",
+    },
+    "triage_case_wound": {
+        "en": "Deep gash across the torso, won't stop bleeding. Patient is pale and fading.",
+        "ru": "Глубокая рана на торсе, кровь не останавливается. Пациент бледнеет.",
+    },
+    "triage_case_toxin": {
+        "en": "Vomiting, confusion, dilated pupils. Ate something from the old district.",
+        "ru": "Рвота, спутанность сознания, расширенные зрачки. Съел что-то из старого района.",
+    },
+    "triage_case_dehydration": {
+        "en": "Cracked lips, sunken eyes, hasn't had water in days. Barely conscious.",
+        "ru": "Потрескавшиеся губы, запавшие глаза, без воды несколько дней. Еле в сознании.",
+    },
+    "triage_opt_radaway": {"en": "💉 Anti-radiation meds", "ru": "💉 Антирадиационные препараты"},
+    "triage_opt_bandage": {"en": "🩹 Bandage and rest", "ru": "🩹 Перевязка и отдых"},
+    "triage_opt_rest": {"en": "😴 Just let them sleep", "ru": "😴 Пусть поспит"},
+    "triage_opt_splint": {"en": "🦴 Set the bone and splint", "ru": "🦴 Вправить и наложить шину"},
+    "triage_opt_herbs": {"en": "🌿 Herbal poultice", "ru": "🌿 Травяной компресс"},
+    "triage_opt_amputation": {"en": "🪚 Amputate", "ru": "🪚 Ампутировать"},
+    "triage_opt_antibiotics": {"en": "💊 Antibiotics", "ru": "💊 Антибиотики"},
+    "triage_opt_cold_water": {"en": "💧 Cold water compress", "ru": "💧 Холодный компресс"},
+    "triage_opt_ignore": {"en": "🤷 Ignore it, they'll be fine", "ru": "🤷 Само пройдёт"},
+    "triage_opt_stitch": {"en": "🪡 Stitch the wound shut", "ru": "🪡 Зашить рану"},
+    "triage_opt_cauterize": {"en": "🔥 Cauterize with hot metal", "ru": "🔥 Прижечь раскалённым металлом"},
+    "triage_opt_prayer": {"en": "🙏 Pray for the best", "ru": "🙏 Молиться"},
+    "triage_opt_charcoal": {"en": "⬛ Activated charcoal", "ru": "⬛ Активированный уголь"},
+    "triage_opt_whiskey": {"en": "🥃 Old world whiskey (it's medicine, right?)", "ru": "🥃 Старый виски (это же лекарство?)"},
+    "triage_opt_sleep": {"en": "😴 Sleep it off", "ru": "😴 Проспаться"},
+    "triage_opt_clean_water": {"en": "💧 Clean water, slowly", "ru": "💧 Чистая вода, понемногу"},
+    "triage_opt_stimpak": {"en": "💉 Stimpak injection", "ru": "💉 Укол стимулятора"},
+    "triage_opt_food": {"en": "🍖 Give them food", "ru": "🍖 Дать еды"},
+    "triage_correct": {"en": "✅ *Correct!* Doc nods approvingly.", "ru": "✅ *Верно!* Док одобрительно кивает."},
+    "triage_wrong": {
+        "en": "❌ *Wrong.* Doc sighs. \"Should've gone with {correct}.\"",
+        "ru": "❌ *Неверно.* Док вздыхает. \"Надо было — {correct}.\"",
+    },
+    "triage_result": {
+        "en": (
+            "💊 *Triage Complete!*\n\n"
+            "Score: *{score}/{total}*\n"
+            "👥 +{pop} population | 😊 {morale:+d} morale"
+        ),
+        "ru": (
+            "💊 *Сортировка окончена!*\n\n"
+            "Результат: *{score}/{total}*\n"
+            "👥 +{pop} населения | 😊 {morale:+d} морали"
+        ),
+    },
+
+    # ── Perimeter Breach (Sentry) ──
+    "breach_intro": {
+        "en": (
+            "🎯 *Sentry's Perimeter Breach*\n\n"
+            "Sentry hands you binoculars. \"Movement on {rounds} sectors. "
+            "I need snap decisions — shoot, negotiate, or take cover. "
+            "Wrong call costs lives.\"\n\n"
+            "Scanning perimeter..."
+        ),
+        "ru": (
+            "🎯 *Прорыв Периметра Часового*\n\n"
+            "Часовой протягивает бинокль. \"Движение на {rounds} секторах. "
+            "Мне нужны быстрые решения — стрелять, договариваться или укрыться. "
+            "Неправильный ответ стоит жизней.\"\n\n"
+            "Сканирую периметр..."
+        ),
+    },
+    "breach_alert": {
+        "en": "🚨 *Sector {sector} — Alert {round}/{total}*\n\n{threat}\n\nYour call:",
+        "ru": "🚨 *Сектор {sector} — Тревога {round}/{total}*\n\n{threat}\n\nВаше решение:",
+    },
+    "breach_threat_raiders": {
+        "en": "Armed raiders approaching fast. Weapons drawn, no flag of truce.",
+        "ru": "Вооружённые рейдеры приближаются. Оружие наготове, белого флага нет.",
+    },
+    "breach_threat_mutants": {
+        "en": "Pack of irradiated mutant hounds. Teeth bared, moving in formation.",
+        "ru": "Стая облучённых мутантов. Оскалены, движутся строем.",
+    },
+    "breach_threat_traders": {
+        "en": "Caravan with white flags. Loaded wagons, guards relaxed.",
+        "ru": "Караван с белыми флагами. Нагруженные повозки, охрана расслаблена.",
+    },
+    "breach_threat_refugees": {
+        "en": "Ragged group of civilians. Women and children. Waving for help.",
+        "ru": "Оборванная группа гражданских. Женщины и дети. Машут, просят о помощи.",
+    },
+    "breach_threat_sandstorm": {
+        "en": "Massive dust wall on the horizon. Moving fast. Sky turning brown.",
+        "ru": "Огромная стена пыли на горизонте. Движется быстро. Небо темнеет.",
+    },
+    "breach_threat_drones": {
+        "en": "Pre-war automated drones. Red targeting lasers sweeping the ground.",
+        "ru": "Довоенные дроны. Красные лазеры прицеливания сканируют землю.",
+    },
+    "breach_threat_scavengers": {
+        "en": "Lone scavengers poking around the perimeter. Look nervous, not hostile.",
+        "ru": "Одинокие старатели бродят у периметра. Выглядят нервно, не враждебно.",
+    },
+    "breach_threat_radstorm": {
+        "en": "Green glow on the horizon. Radiation storm incoming. Geiger's screaming.",
+        "ru": "Зелёное свечение на горизонте. Радиационный шторм. Счётчик зашкаливает.",
+    },
+    "breach_opt_shoot": {"en": "Open fire", "ru": "Открыть огонь"},
+    "breach_opt_negotiate": {"en": "Talk to them", "ru": "Переговоры"},
+    "breach_opt_hide": {"en": "Take cover", "ru": "В укрытие"},
+    "breach_opt_trap": {"en": "Set a trap", "ru": "Поставить ловушку"},
+    "breach_opt_run": {"en": "Fall back", "ru": "Отступить"},
+    "breach_correct": {"en": "✅ *Good call!* Sentry nods. \"You've got instincts.\"", "ru": "✅ *Верное решение!* Часовой кивает. \"У тебя чутьё.\""},
+    "breach_wrong": {
+        "en": "❌ *Bad call.* Sentry winces. \"Should've gone with: {correct}.\"",
+        "ru": "❌ *Плохой выбор.* Часовой морщится. \"Надо было: {correct}.\"",
+    },
+    "breach_result": {
+        "en": (
+            "🎯 *Perimeter Secured!*\n\n"
+            "Score: *{score}/{total}*\n"
+            "🛡 {defense:+d} defense | 😊 +{morale} morale | 👥 {pop:+d} population"
+        ),
+        "ru": (
+            "🎯 *Периметр защищён!*\n\n"
+            "Результат: *{score}/{total}*\n"
+            "🛡 {defense:+d} оборона | 😊 +{morale} мораль | 👥 {pop:+d} население"
+        ),
+    },
+    "breach_result_no_reward": {
+        "en": "🎯 Drill complete, but your game session expired.",
+        "ru": "🎯 Учения окончены, но ваша сессия истекла.",
+    },
 }
 
 

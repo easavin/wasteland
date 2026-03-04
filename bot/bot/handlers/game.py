@@ -115,6 +115,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await handle_challenge_callback(update, context)
         return
 
+    # Route NPC minigame interactions
+    if data.startswith("npc:"):
+        from bot.handlers.npc_games import handle_npc_callback
+        await handle_npc_callback(update, context)
+        return
+
     pool = context.bot_data["db_pool"]
     player = await get_player_by_telegram_id(pool, query.from_user.id)
     if not player:
