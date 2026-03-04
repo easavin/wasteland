@@ -121,6 +121,36 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await handle_npc_callback(update, context)
         return
 
+    # Route inventory equip/use callbacks
+    if data.startswith("inv:"):
+        from bot.handlers.inventory import handle_inventory_callback
+        await handle_inventory_callback(update, context)
+        return
+
+    # Route exploration choices
+    if data.startswith("explore:"):
+        from bot.handlers.explore import handle_explore_callback
+        await handle_explore_callback(update, context)
+        return
+
+    # Route codex navigation
+    if data.startswith("codex:"):
+        from bot.handlers.codex import handle_codex_callback
+        await handle_codex_callback(update, context)
+        return
+
+    # Route daily missions claim
+    if data.startswith("dispatch:"):
+        from bot.handlers.dispatch import handle_dispatch_callback
+        await handle_dispatch_callback(update, context)
+        return
+
+    # Route leaderboard category switching
+    if data.startswith("top:"):
+        from bot.handlers.leaderboard import handle_top_callback
+        await handle_top_callback(update, context)
+        return
+
     pool = context.bot_data["db_pool"]
     player = await get_player_by_telegram_id(pool, query.from_user.id)
     if not player:
@@ -231,6 +261,24 @@ async def _execute_turn(
     if result.new_levels:
         for lvl in result.new_levels:
             response_parts.append(f"\n🎉 *LEVEL UP! You reached level {lvl}!*")
+
+    # Item drop notification
+    if result.dropped_item:
+        from bot.engine.items import get_item_name, get_rarity_emoji, get_item
+        item_spec = get_item(result.dropped_item)
+        if item_spec:
+            item_name = get_item_name(result.dropped_item, lang)
+            rarity = item_spec["rarity"]
+            emoji = get_rarity_emoji(rarity)
+            response_parts.append(f"\n🎁 Found: {emoji} *{item_name}*")
+
+    # Codex discovery notification
+    if result.codex_entry:
+        from bot.engine.codex import CODEX_ENTRIES, get_category_emoji
+        ce = CODEX_ENTRIES.get(result.codex_entry, {})
+        ce_name = ce.get("name", {}).get(lang, result.codex_entry)
+        ce_emoji = get_category_emoji(ce.get("category", ""))
+        response_parts.append(f"\n📖 Codex: {ce_emoji} *{ce_name}*")
 
     # Current resources
     s = result.new_state

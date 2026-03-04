@@ -186,6 +186,13 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     if kw_result and kw_result[0] == "build" and kw_result[1]:
                         target = kw_result[1]
 
+                # Intercept "explore" for multi-step interactive exploration
+                if action == "explore":
+                    state = GameState.from_db_row(game_row)
+                    from bot.handlers.explore import start_exploration
+                    await start_exploration(update, context, player, state)
+                    return
+
                 # Update comm profile from this message
                 profiler = context.bot_data.get("profiler")
                 if profiler:
@@ -203,6 +210,14 @@ async def handle_free_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     result = _parse_keywords(text)
     if result:
         action, target = result
+
+        # Intercept "explore" for multi-step interactive exploration
+        if action == "explore":
+            state = GameState.from_db_row(game_row)
+            from bot.handlers.explore import start_exploration
+            await start_exploration(update, context, player, state)
+            return
+
         profiler = context.bot_data.get("profiler")
         if profiler:
             try:

@@ -22,6 +22,15 @@ from bot.engine.classes import get_starvation_threshold
 from bot.engine.events import roll_random_event
 from bot.engine.factions import update_faction_rep
 from bot.engine.game_state import GameState, TurnResult
+from bot.engine.items import (
+    get_equipped_bonuses,
+    roll_item_drop,
+    add_item_to_inventory,
+    get_item_name,
+    get_rarity_emoji,
+    get_item,
+)
+from bot.engine.codex import check_codex_discovery
 from bot.engine.progression import (
     calculate_xp_for_turn,
     check_milestones,
@@ -195,9 +204,10 @@ async def _persist_turn(
                        milestones      = $24::jsonb,
                        zone            = $25,
                        inventory       = $26::jsonb,
+                       codex           = $27::jsonb,
                        updated_at      = NOW(),
                        ended_at        = CASE WHEN $1::varchar = 'lost' THEN NOW() ELSE ended_at END
-                 WHERE id = $27
+                 WHERE id = $28
                 """,
                 state.status,
                 state.turn_number,
@@ -225,6 +235,7 @@ async def _persist_turn(
                 json.dumps(state.milestones),
                 state.zone,
                 json.dumps(state.inventory),
+                json.dumps(state.codex),
                 state.id,
             )
 
@@ -351,6 +362,26 @@ async def process_turn(
     building_effects = calculate_building_effects(state.buildings, state=state)
     _merge_deltas(all_deltas, building_effects)
 
+    # Step 4b -- Equipped item per-turn bonuses.
+    equipped_bonuses = get_equipped_bonuses(state.inventory)
+    item_per_turn: dict[str, int] = {}
+    for bonus_key, val in equipped_bonuses.items():
+        if bonus_key == "scrap_per_turn":
+            item_per_turn["scrap"] = item_per_turn.get("scrap", 0) + val
+        elif bonus_key == "food_per_turn":
+            item_per_turn["food"] = item_per_turn.get("food", 0) + val
+        elif bonus_key == "gold_per_turn":
+            item_per_turn["gold"] = item_per_turn.get("gold", 0) + val
+        elif bonus_key == "morale_per_turn":
+            item_per_turn["morale"] = item_per_turn.get("morale", 0) + val
+        elif bonus_key == "defense_per_turn":
+            item_per_turn["defense"] = item_per_turn.get("defense", 0) + val
+        elif bonus_key == "all_per_turn":
+            for r in ("food", "scrap", "gold", "morale", "defense"):
+                item_per_turn[r] = item_per_turn.get(r, 0) + val
+    if item_per_turn:
+        _merge_deltas(all_deltas, item_per_turn)
+
     # Step 5 -- Action bonus (includes gold from trade/explore).
     action_deltas = apply_action_bonus(action, target, state)
     _merge_deltas(all_deltas, action_deltas)
@@ -393,6 +424,24 @@ async def process_turn(
 
     # Step 13 -- Update player style (EMA).
     _update_player_style(state, action)
+
+    # Step 13b -- Roll for item drop based on action.
+    dropped_item_id: str | None = roll_item_drop(
+        state.zone, action, equipped_bonuses,
+    )
+    if dropped_item_id:
+        state.inventory = add_item_to_inventory(state.inventory, dropped_item_id)
+
+    # Step 13c -- Roll for codex discovery.
+    event_id = event["id"] if event else None
+    codex_entry_id: str | None = check_codex_discovery(
+        event_id=event_id,
+        zone=state.zone,
+        action=action,
+        discovered=state.codex,
+    )
+    if codex_entry_id:
+        state.codex.append(codex_entry_id)
 
     # Step 14 -- XP / Level / Milestones / Zone progression.
     xp_earned = calculate_xp_for_turn(action, event, all_deltas, state)
@@ -494,4 +543,6 @@ async def process_turn(
         xp_earned=xp_earned,
         new_levels=new_levels,
         new_milestones=new_milestone_ids,
+        dropped_item=dropped_item_id,
+        codex_entry=codex_entry_id,
     )

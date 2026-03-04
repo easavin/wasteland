@@ -368,6 +368,12 @@ _STRINGS: dict[str, dict[str, str]] = {
             "/status -- View settlement status\n"
             "/newgame -- Start a new game (abandons current)\n"
             "/npc -- Play minigames with NPCs\n"
+            "/inventory -- View your items\n"
+            "/daily -- Claim daily reward\n"
+            "/dispatch -- Daily missions\n"
+            "/codex -- Wasteland lore\n"
+            "/top -- Leaderboards\n"
+            "/invite -- Invite friends\n"
             "/help -- Show this help\n\n"
             "*Actions (type in chat):*\n"
             "Build -- Construct buildings (costs scrap)\n"
@@ -396,6 +402,12 @@ _STRINGS: dict[str, dict[str, str]] = {
             "/status -- Посмотреть статус поселения\n"
             "/newgame -- Начать новую игру (текущая будет брошена)\n"
             "/npc -- Мини-игры с NPC\n"
+            "/inventory -- Инвентарь\n"
+            "/daily -- Ежедневная награда\n"
+            "/dispatch -- Ежедневные задания\n"
+            "/codex -- Кодекс Пустоши\n"
+            "/top -- Таблица лидеров\n"
+            "/invite -- Пригласить друзей\n"
             "/help -- Показать справку\n\n"
             "*Действия (пишите в чат):*\n"
             "Строить -- Возводить постройки (стоит хлам)\n"
@@ -536,6 +548,47 @@ _STRINGS: dict[str, dict[str, str]] = {
     "shop_not_enough_gold": {
         "en": "Not enough gold. Need {cost} 💰, you have {gold} 💰.",
         "ru": "Недостаточно золота. Нужно {cost} 💰, у вас {gold} 💰.",
+    },
+    # --- Inventory ---
+    "inventory_header": {
+        "en": "🎒 *Inventory*",
+        "ru": "🎒 *Инвентарь*",
+    },
+    "use_usage": {
+        "en": "Usage: /use <item_id>\nSee /inventory for your items.",
+        "ru": "Использование: /use <предмет>\nСмотрите /inventory для списка предметов.",
+    },
+    "use_success": {
+        "en": "✅ Used *{item}*: {effect}",
+        "ru": "✅ Использовано *{item}*: {effect}",
+    },
+    "use_unknown_item": {
+        "en": "Unknown item.",
+        "ru": "Неизвестный предмет.",
+    },
+    "use_not_consumable": {
+        "en": "That item cannot be used — it's equipment. Try equipping it via /inventory.",
+        "ru": "Этот предмет нельзя использовать — это снаряжение. Экипируйте через /inventory.",
+    },
+    "use_not_in_inventory": {
+        "en": "You don't have that item.",
+        "ru": "У вас нет этого предмета.",
+    },
+    "equip_on": {
+        "en": "✅ Equipped *{item}*.",
+        "ru": "✅ *{item}* экипирован.",
+    },
+    "equip_off": {
+        "en": "✅ Unequipped *{item}*.",
+        "ru": "✅ *{item}* снят.",
+    },
+    "equip_failed": {
+        "en": "Cannot equip — maximum {max} items equipped. Unequip something first.",
+        "ru": "Невозможно экипировать — максимум {max} предметов. Сначала снимите что-нибудь.",
+    },
+    "item_found": {
+        "en": "🎁 You found: {rarity_emoji} *{item}* ({rarity})!\n_{flavor}_",
+        "ru": "🎁 Вы нашли: {rarity_emoji} *{item}* ({rarity})!\n_{flavor}_",
     },
     # --- Chat ---
     "chat_no_world": {"en": "You're not in a shared world.", "ru": "Вы не в общем мире."},
@@ -852,6 +905,108 @@ _STRINGS: dict[str, dict[str, str]] = {
     "breach_result_no_reward": {
         "en": "🎯 Drill complete, but your game session expired.",
         "ru": "🎯 Учения окончены, но ваша сессия истекла.",
+    },
+
+    # --- Inventory & Items ---
+    "inventory_header": {
+        "en": "🎒 *Inventory*",
+        "ru": "🎒 *Инвентарь*",
+    },
+    "use_usage": {
+        "en": "Usage: /use <item_id>\n\nOpen /inventory to see your items.",
+        "ru": "Использование: /use <id_предмета>\n\nОткрой /inventory чтобы увидеть предметы.",
+    },
+    "use_success": {
+        "en": "✅ Used *{item}*\n{effect}",
+        "ru": "✅ Использовано: *{item}*\n{effect}",
+    },
+    "use_unknown_item": {
+        "en": "❌ Unknown item.",
+        "ru": "❌ Неизвестный предмет.",
+    },
+    "use_not_consumable": {
+        "en": "❌ That item is not consumable.",
+        "ru": "❌ Этот предмет не расходник.",
+    },
+    "use_not_in_inventory": {
+        "en": "❌ You don't have that item.",
+        "ru": "❌ У тебя нет этого предмета.",
+    },
+    "equip_on": {
+        "en": "⚔️ Equipped *{item}*",
+        "ru": "⚔️ Надето: *{item}*",
+    },
+    "equip_off": {
+        "en": "📦 Unequipped *{item}*",
+        "ru": "📦 Снято: *{item}*",
+    },
+    "equip_failed": {
+        "en": "❌ Cannot equip — max {max} items equipped.",
+        "ru": "❌ Невозможно надеть — максимум {max} предметов.",
+    },
+    "item_drop": {
+        "en": "🎁 Found: {emoji} *{name}* ({rarity})",
+        "ru": "🎁 Найдено: {emoji} *{name}* ({rarity})",
+    },
+
+    # --- Daily Streak ---
+    "daily_already_claimed": {
+        "en": (
+            "📅 *Daily Reward*\n\n"
+            "You already claimed today's reward!\n"
+            "Next reward in *{hours}h {minutes}m*.\n\n"
+            "{progress}\n\n"
+            "Tomorrow: {tomorrow_preview}"
+        ),
+        "ru": (
+            "📅 *Ежедневная награда*\n\n"
+            "Ты уже забрал(а) сегодняшнюю награду!\n"
+            "Следующая через *{hours}ч {minutes}мин*.\n\n"
+            "{progress}\n\n"
+            "Завтра: {tomorrow_preview}"
+        ),
+    },
+    "daily_claimed": {
+        "en": (
+            "📅 *Daily Reward — Day {day}*\n\n"
+            "🔥 Streak: *{streak} days*\n\n"
+            "Reward: {reward}\n\n"
+            "{progress}\n\n"
+            "Tomorrow: {tomorrow}"
+            "{tier_msg}"
+        ),
+        "ru": (
+            "📅 *Ежедневная награда — День {day}*\n\n"
+            "🔥 Серия: *{streak} дней*\n\n"
+            "Награда: {reward}\n\n"
+            "{progress}\n\n"
+            "Завтра: {tomorrow}"
+            "{tier_msg}"
+        ),
+    },
+    "daily_tier_up": {
+        "en": (
+            "\n\n🏆 *STREAK TIER UP!*\n"
+            "You reached *Tier {tier}: {tier_name}*!\n"
+            "All resource rewards now get a +{tier}0% bonus!"
+        ),
+        "ru": (
+            "\n\n🏆 *РАНГ СЕРИИ ПОВЫШЕН!*\n"
+            "Ты достиг(ла) *Ранга {tier}: {tier_name}*!\n"
+            "Все ресурсные награды теперь получают бонус +{tier}0%!"
+        ),
+    },
+
+    # --- Exploration ---
+    "explore_no_scenario": {
+        "en": "No exploration scenarios available for your zone.",
+        "ru": "Нет доступных сценариев разведки для вашей зоны.",
+    },
+
+    # --- Codex ---
+    "codex_discovery": {
+        "en": "📖 *New Codex Entry!*\n{emoji} {name}",
+        "ru": "📖 *Новая запись в Кодексе!*\n{emoji} {name}",
     },
 }
 

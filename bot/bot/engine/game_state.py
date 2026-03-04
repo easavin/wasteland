@@ -62,6 +62,7 @@ class GameState:
     skills: dict[str, int] = field(default_factory=dict)
     milestones: list[str] = field(default_factory=list)
     inventory: list[dict] = field(default_factory=list)
+    codex: list[str] = field(default_factory=list)
 
     # Timestamps (kept as strings; only used for display / logging)
     started_at: str | None = None
@@ -118,7 +119,7 @@ class GameState:
 
         # JSONB columns may already be parsed by asyncpg or may be strings.
         for json_key in ("buildings", "active_effects", "narrator_memory",
-                         "skills", "milestones", "inventory"):
+                         "skills", "milestones", "inventory", "codex"):
             raw = row.get(json_key)
             if raw is None:
                 continue
@@ -184,3 +185,5 @@ class TurnResult:
     xp_earned: int = 0
     new_levels: list[int] = field(default_factory=list)
     new_milestones: list[str] = field(default_factory=list)
+    dropped_item: str | None = None      # item_id if an item dropped
+    codex_entry: str | None = None        # codex entry_id if discovered

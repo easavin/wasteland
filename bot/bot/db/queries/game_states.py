@@ -15,6 +15,7 @@ _JSONB_COLUMNS = frozenset({
     "skills",
     "milestones",
     "inventory",
+    "codex",
 })
 
 # All mutable columns on ``game_states`` that callers may pass to
@@ -50,6 +51,7 @@ _UPDATABLE_COLUMNS = frozenset({
     "milestones",
     "zone",
     "inventory",
+    "codex",
     "ended_at",
 })
 

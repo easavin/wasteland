@@ -14,9 +14,14 @@ from telegram.ext import (
 
 from bot.config import settings
 from bot.db.pool import init_db_pool, close_db_pool
-from bot.handlers import start, game, help as help_handler, payment, voice, messages, skills, shop, chat, guilds, trade, combat, quests, npc_games
+from bot.handlers import (
+    start, game, help as help_handler, payment, voice, messages,
+    skills, shop, chat, guilds, trade, combat, quests, npc_games,
+    inventory, daily, dispatch, codex as codex_handler, leaderboard, referral,
+)
 from bot.narrator.gemini_client import GeminiNarrator
 from bot.narrator.profiler import PlayerProfiler
+from bot.jobs.comeback import check_comeback_players
 from bot.utils.logger import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -44,6 +49,12 @@ async def post_init(application) -> None:
         BotCommand("challenge", "PvP challenge"),
         BotCommand("quest", "Find NPCs and quests"),
         BotCommand("npc", "Play minigames with NPCs"),
+        BotCommand("inventory", "View your items"),
+        BotCommand("daily", "Claim daily reward"),
+        BotCommand("dispatch", "Daily missions"),
+        BotCommand("codex", "Wasteland lore collection"),
+        BotCommand("top", "Leaderboards"),
+        BotCommand("invite", "Invite friends"),
         BotCommand("skills",  "View and upgrade skills"),
         BotCommand("shop",    "Spend gold on supplies"),
         BotCommand("help",    "How to play"),
@@ -112,6 +123,15 @@ def main() -> None:
     app.add_handler(CommandHandler("challengeaccept", combat.handle_challenge_accept))
     app.add_handler(CommandHandler("challengedecline", combat.handle_challenge_decline))
 
+    # --- Retention features ---
+    app.add_handler(CommandHandler("inventory", inventory.handle_inventory))
+    app.add_handler(CommandHandler("use", inventory.handle_use))
+    app.add_handler(CommandHandler("daily", daily.handle_daily))
+    app.add_handler(CommandHandler("dispatch", dispatch.handle_dispatch))
+    app.add_handler(CommandHandler("codex", codex_handler.handle_codex))
+    app.add_handler(CommandHandler("top", leaderboard.handle_top))
+    app.add_handler(CommandHandler("invite", referral.handle_invite))
+
     # --- Callback queries (inline keyboard buttons) ---
     app.add_handler(CallbackQueryHandler(game.handle_callback))
 
@@ -130,6 +150,13 @@ def main() -> None:
     )
 
     app.add_error_handler(error_handler)
+
+    # --- Scheduled jobs ---
+    job_queue = app.job_queue
+    if job_queue:
+        # Comeback notifications: check every hour
+        job_queue.run_repeating(check_comeback_players, interval=3600, first=60)
+        logger.info("Comeback notification job scheduled (every 1h)")
 
     logger.info("Bot handlers registered. Starting polling...")
     app.run_polling(drop_pending_updates=True)
