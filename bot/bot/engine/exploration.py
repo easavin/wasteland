@@ -1069,6 +1069,25 @@ def _roll_exploration_item(zone: int) -> str:
 
 EXPLORATION_STRINGS: dict[str, dict[str, str]] = {
     # ==================================================================
+    # Scenario display names (used by explore handler)
+    # ==================================================================
+    "explore_sc_gasstation_name": {"en": "Abandoned Gas Station", "ru": "Заброшенная заправка"},
+    "explore_sc_apartment_name": {"en": "Crumbling Apartment Block", "ru": "Разрушенный жилой дом"},
+    "explore_sc_market_name": {"en": "Ransacked Market", "ru": "Разграбленный рынок"},
+    "explore_sc_camp_name": {"en": "Abandoned Camp", "ru": "Заброшенный лагерь"},
+    "explore_sc_school_name": {"en": "Old School Building", "ru": "Старое школьное здание"},
+    "explore_sc_factory_name": {"en": "Ruined Factory Complex", "ru": "Разрушенный заводской комплекс"},
+    "explore_sc_checkpoint_name": {"en": "Military Checkpoint", "ru": "Военный блокпост"},
+    "explore_sc_hospital_name": {"en": "Ruined Hospital", "ru": "Разрушенная больница"},
+    "explore_sc_trainyard_name": {"en": "Abandoned Trainyard", "ru": "Заброшенное депо"},
+    "explore_sc_bridge_name": {"en": "Collapsed Bridge", "ru": "Обрушенный мост"},
+    "explore_sc_bunker_name": {"en": "Underground Bunker", "ru": "Подземный бункер"},
+    "explore_sc_research_name": {"en": "Research Lab", "ru": "Исследовательская лаборатория"},
+    "explore_sc_powerplant_name": {"en": "Wrecked Power Plant", "ru": "Разрушенная электростанция"},
+    "explore_sc_comtower_name": {"en": "Communications Tower", "ru": "Телекоммуникационная вышка"},
+    "explore_sc_deadmall_name": {"en": "Dead Mall", "ru": "Мёртвый торговый центр"},
+
+    # ==================================================================
     # 1. Abandoned Gas Station
     # ==================================================================
     "explore_sc_gasstation_intro": {

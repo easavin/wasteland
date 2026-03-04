@@ -20,6 +20,7 @@ from bot.engine.exploration import (
     pick_scenario,
     resolve_exploration_choice,
     SCENARIOS,
+    EXPLORATION_STRINGS,
 )
 from bot.engine.items import add_item_to_inventory, get_item_name
 from bot.engine.codex import check_codex_discovery
@@ -298,45 +299,4 @@ def _step_keyboard(scenario, step_idx: int, lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
-# ---------------------------------------------------------------------------
-# i18n strings for exploration scenarios
-# ---------------------------------------------------------------------------
-
-EXPLORATION_STRINGS: dict[str, dict[str, str]] = {
-    "explore_no_scenario": {
-        "en": "No exploration scenarios available for your zone.",
-        "ru": "Нет доступных сценариев разведки для вашей зоны.",
-    },
-    # Scenario names
-    "explore_sc_gasstation_name": {"en": "Abandoned Gas Station", "ru": "Заброшенная заправка"},
-    "explore_sc_hospital_name": {"en": "Ruined Hospital", "ru": "Разрушенная больница"},
-    "explore_sc_subway_name": {"en": "Subway Tunnels", "ru": "Тоннели метро"},
-    "explore_sc_overpass_name": {"en": "Highway Overpass", "ru": "Шоссейная эстакада"},
-    "explore_sc_mall_name": {"en": "Collapsed Mall", "ru": "Обрушенный торговый центр"},
-    "explore_sc_factory_name": {"en": "Abandoned Factory", "ru": "Заброшенная фабрика"},
-    "explore_sc_military_name": {"en": "Military Outpost", "ru": "Военная база"},
-    "explore_sc_vault_name": {"en": "Underground Vault", "ru": "Подземное хранилище"},
-    "explore_sc_lighthouse_name": {"en": "Signal Lighthouse", "ru": "Сигнальный маяк"},
-    "explore_sc_lab_name": {"en": "Research Lab", "ru": "Исследовательская лаборатория"},
-    # Scenario intros
-    "explore_sc_gasstation_intro": {
-        "en": "An old gas station looms ahead, its roof half-collapsed. Could be supplies inside... or trouble.",
-        "ru": "Впереди старая заправка с наполовину обрушенной крышей. Внутри могут быть припасы... или неприятности.",
-    },
-    "explore_sc_hospital_intro": {
-        "en": "The hospital's broken windows stare like empty eyes. Medical supplies would be invaluable.",
-        "ru": "Разбитые окна больницы смотрят как пустые глаза. Медикаменты были бы бесценны.",
-    },
-    "explore_sc_subway_intro": {
-        "en": "The subway entrance gapes before you, darkness swallowing the stairs below.",
-        "ru": "Вход в метро зияет перед тобой, тьма поглощает лестницу внизу.",
-    },
-    "explore_sc_overpass_intro": {
-        "en": "The elevated highway offers a vantage point, but the climb looks treacherous.",
-        "ru": "Эстакада даёт обзор, но подъём выглядит опасным.",
-    },
-    "explore_sc_mall_intro": {
-        "en": "The shopping mall collapsed inward, creating a maze of debris and potential loot.",
-        "ru": "Торговый центр обрушился внутрь, создав лабиринт из обломков и потенциальной добычи.",
-    },
-}
+# EXPLORATION_STRINGS is imported from bot.engine.exploration
