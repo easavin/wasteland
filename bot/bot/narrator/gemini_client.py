@@ -387,6 +387,61 @@ Never mention "Week X" or count weeks — the journey has no fixed end.
         return response.text.strip()
 
     # ------------------------------------------------------------------
+    # Exploration outcome narration
+    # ------------------------------------------------------------------
+
+    async def narrate_exploration_outcome(
+        self,
+        scenario_name: str,
+        choice_label: str,
+        results: dict,
+        language: str,
+    ) -> str:
+        """Generate a 1-2 sentence narrative for an exploration choice outcome."""
+        lang_name = "Russian" if language == "ru" else "English"
+
+        results_desc = []
+        if results.get("scrap", 0) > 0:
+            results_desc.append(f"found {results['scrap']} scrap")
+        if results.get("gold", 0) > 0:
+            results_desc.append(f"found {results['gold']} gold")
+        if results.get("item_name"):
+            results_desc.append(f"found item: {results['item_name']}")
+        if results.get("pop_loss", 0) > 0:
+            results_desc.append(f"lost {results['pop_loss']} people")
+        if results.get("morale_loss", 0) > 0:
+            results_desc.append(f"morale dropped by {results['morale_loss']}")
+        if not results_desc:
+            results_desc.append("nothing significant happened")
+
+        prompt = f"""Location: {scenario_name}
+Action: {choice_label}
+Result: {', '.join(results_desc)}
+
+Write 1-2 SHORT sentences describing what happened. Be vivid and post-apocalyptic.
+Do NOT mention any numbers. Just narrate the scene.
+Language: {lang_name} ONLY."""
+
+        try:
+            response = await self.client.aio.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=GenerateContentConfig(
+                    system_instruction=(
+                        "You are the narrator of a post-apocalyptic survival game. "
+                        "Write extremely brief, atmospheric outcomes for exploration choices. "
+                        "1-2 sentences max. No numbers, no game mechanics. Just story."
+                    ),
+                    temperature=0.9,
+                    max_output_tokens=150,
+                    thinking_config=ThinkingConfig(thinking_budget=0),
+                ),
+            )
+            return response.text.strip()
+        except Exception:
+            return ""
+
+    # ------------------------------------------------------------------
     # Display name moderation
     # ------------------------------------------------------------------
 

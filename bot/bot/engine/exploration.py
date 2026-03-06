@@ -1043,11 +1043,11 @@ def _roll_exploration_item(zone: int) -> str:
     Returns a generic item slug.  The item catalog is defined elsewhere;
     here we just pick a tier-appropriate id.
     """
-    # Tier pools by zone (item ids are resolved by the item system)
-    tier_1 = ["item_scrap_armor", "item_rusty_blade", "item_first_aid", "item_rations"]
-    tier_2 = ["item_combat_knife", "item_kevlar_vest", "item_med_kit", "item_binoculars"]
-    tier_3 = ["item_assault_rifle", "item_hazmat_suit", "item_advanced_med", "item_night_vision"]
-    tier_rare = ["item_power_cell", "item_ai_chip", "item_ancient_map", "item_fusion_core"]
+    # Tier pools by zone — ids must match keys in bot.engine.items.ITEMS
+    tier_1 = ["scrap_armor", "rusty_knife", "dried_rations", "torn_map"]
+    tier_2 = ["scout_binoculars", "medkit", "stimpak", "field_radio"]
+    tier_3 = ["hazmat_suit", "auto_turret", "supply_cache", "genetic_serum"]
+    tier_rare = ["navigators_map", "nuclear_core", "golden_pipboy", "quantum_cell"]
 
     if zone <= 1:
         pool = tier_1

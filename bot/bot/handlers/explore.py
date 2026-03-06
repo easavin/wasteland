@@ -170,24 +170,49 @@ async def handle_explore_callback(update: Update, context: ContextTypes.DEFAULT_
 
     # Build response text for this step
     risk_emoji = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(choice.risk, "⚪")
-    lines = [f"{risk_emoji} *{_choice_label(choice, lang)}*", ""]
+    lines = [f"{risk_emoji} *{_choice_label(choice, lang)}*"]
+
+    # Narrative outcome text via LLM
+    narrator = context.bot_data.get("narrator")
+    if narrator:
+        try:
+            scenario_name = _scenario_name(scenario, lang)
+            choice_label_text = _choice_label(choice, lang)
+            narration_results = {
+                "scrap": scrap_gained, "gold": gold_gained,
+                "pop_loss": pop_lost, "morale_loss": morale_lost,
+                "item_name": get_item_name(item_found, lang) if item_found else None,
+            }
+            outcome_text = await narrator.narrate_exploration_outcome(
+                scenario_name, choice_label_text, narration_results, lang,
+            )
+            if outcome_text:
+                lines.append(outcome_text)
+        except Exception:
+            logger.exception("Exploration narration failed")
+    lines.append("")
+
+    scrap_label = "металлолом" if lang == "ru" else "scrap"
+    gold_label = "золото" if lang == "ru" else "gold"
+    pop_label = "население" if lang == "ru" else "population"
+    morale_label = "мораль" if lang == "ru" else "morale"
 
     if scrap_gained > 0:
-        lines.append(f"  🔩 +{scrap_gained} scrap")
+        lines.append(f"  🔩 +{scrap_gained} {scrap_label}")
     if gold_gained > 0:
-        lines.append(f"  💰 +{gold_gained} gold")
+        lines.append(f"  💰 +{gold_gained} {gold_label}")
     if pop_lost > 0:
-        lines.append(f"  👥 -{pop_lost} population")
+        lines.append(f"  👥 -{pop_lost} {pop_label}")
     if morale_lost > 0:
-        lines.append(f"  😞 -{morale_lost} morale")
+        lines.append(f"  😞 -{morale_lost} {morale_label}")
     if item_found:
         iname = get_item_name(item_found, lang)
-        lines.append(f"  🎁 Found: {iname}")
+        lines.append(f"  🎁 {iname}")
     if codex_entry:
         from bot.engine.codex import CODEX_ENTRIES
         ce = CODEX_ENTRIES.get(codex_entry, {})
         ce_name = ce.get("name", {}).get(lang, codex_entry)
-        lines.append(f"  📖 Codex: {ce_name}")
+        lines.append(f"  📖 {ce_name}")
 
     # Check if scenario continues or resolves
     if choice.next_step is not None and choice.next_step < len(scenario.steps):
@@ -234,14 +259,19 @@ async def handle_explore_callback(update: Update, context: ContextTypes.DEFAULT_
         total_pop = exp_state["total_pop_lost"]
         total_morale = exp_state["total_morale_lost"]
 
+        s_scrap = "металлолом" if lang == "ru" else "scrap"
+        s_gold = "золото" if lang == "ru" else "gold"
+        s_pop = "население" if lang == "ru" else "population"
+        s_morale = "мораль" if lang == "ru" else "morale"
+
         if total_scrap > 0:
-            lines.append(f"  🔩 +{total_scrap}")
+            lines.append(f"  🔩 +{total_scrap} {s_scrap}")
         if total_gold > 0:
-            lines.append(f"  💰 +{total_gold}")
+            lines.append(f"  💰 +{total_gold} {s_gold}")
         if total_pop > 0:
-            lines.append(f"  👥 -{total_pop}")
+            lines.append(f"  👥 -{total_pop} {s_pop}")
         if total_morale > 0:
-            lines.append(f"  😞 -{total_morale}")
+            lines.append(f"  😞 -{total_morale} {s_morale}")
         if exp_state["items_found"]:
             for iid in exp_state["items_found"]:
                 iname = get_item_name(iid, lang)
