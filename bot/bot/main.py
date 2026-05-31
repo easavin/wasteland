@@ -154,9 +154,12 @@ def main() -> None:
     # --- Scheduled jobs ---
     job_queue = app.job_queue
     if job_queue:
-        # Comeback notifications: check every hour
-        job_queue.run_repeating(check_comeback_players, interval=3600, first=60)
-        logger.info("Comeback notification job scheduled (every 1h)")
+        # Comeback notifications: every 6h. The eligibility window per tier is
+        # ~12h (see comeback.py `upper = now - timedelta(days=days - 0.5)`) and
+        # comeback_tier dedups sends, so 6h still catches every player while
+        # cutting Neon wake-ups ~6x vs hourly (each wake bills ~5min on Launch).
+        job_queue.run_repeating(check_comeback_players, interval=21600, first=60)
+        logger.info("Comeback notification job scheduled (every 6h)")
 
     logger.info("Bot handlers registered. Starting polling...")
     app.run_polling(drop_pending_updates=True)
