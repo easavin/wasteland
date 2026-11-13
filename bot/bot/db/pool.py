@@ -20,15 +20,19 @@ async def init_db_pool(database_url: str) -> asyncpg.Pool:
     logger.info("Initialising database connection pool …")
     pool = await asyncpg.create_pool(
         dsn=database_url,
-        min_size=2,
-        max_size=10,
+        # Lazy pool: open nothing at startup and close idle connections after
+        # 60s, so an idle bot holds no connections. That lets Neon suspend and
+        # keeps the container quiet enough for Railway App Sleeping.
+        min_size=0,
+        max_size=5,
+        max_inactive_connection_lifetime=60,
         command_timeout=30,
         # Neon requires SSL; asyncpg respects the sslmode param in the DSN,
         # but we also set statement_cache_size=0 because Neon's connection
         # pooler (pgbouncer) does not support prepared statements.
         statement_cache_size=0,
     )
-    logger.info("Database pool created (min=2, max=10)")
+    logger.info("Database pool created (lazy, max=5)")
     return pool
 
 

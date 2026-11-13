@@ -1,5 +1,7 @@
 """Wasteland Chronicles Telegram Bot — Entry Point."""
 
+import asyncio
+import hashlib
 import logging
 
 from telegram import BotCommand
@@ -38,7 +40,39 @@ async def post_init(application) -> None:
     pool = await init_db_pool(settings.database_url)
     application.bot_data["db_pool"] = pool
 
-    # Register bot commands (shows the / suggestion list in Telegram)
+    # Register bot commands in the background so a cold start (webhook mode
+    # wakes the container on the first update) starts serving immediately.
+    application.bot_data["_commands_task"] = asyncio.get_running_loop().create_task(
+        _register_commands(application)
+    )
+
+    # AI narrator (gracefully optional)
+    if settings.gemini_api_key:
+        try:
+            profiler = PlayerProfiler()
+            narrator = GeminiNarrator(profiler=profiler)
+            application.bot_data["narrator"] = narrator
+            application.bot_data["profiler"] = profiler
+            logger.info("Gemini narrator initialized (model: %s)", settings.gemini_model)
+        except Exception:
+            logger.exception("Failed to initialize Gemini narrator — running without AI")
+            application.bot_data["narrator"] = None
+            application.bot_data["profiler"] = None
+    else:
+        logger.warning("No GEMINI_API_KEY set — running without AI narrator")
+        application.bot_data["narrator"] = None
+        application.bot_data["profiler"] = None
+
+
+async def _register_commands(application) -> None:
+    """Shows the / suggestion list in Telegram."""
+    try:
+        await _set_commands(application)
+    except Exception:
+        logger.warning("Could not register bot commands", exc_info=True)
+
+
+async def _set_commands(application) -> None:
     await application.bot.set_my_commands([
         BotCommand("start",   "Start or resume your game"),
         BotCommand("newgame", "Abandon current game and start fresh"),
@@ -59,23 +93,6 @@ async def post_init(application) -> None:
         BotCommand("shop",    "Spend gold on supplies"),
         BotCommand("help",    "How to play"),
     ])
-
-    # AI narrator (gracefully optional)
-    if settings.gemini_api_key:
-        try:
-            profiler = PlayerProfiler()
-            narrator = GeminiNarrator(profiler=profiler)
-            application.bot_data["narrator"] = narrator
-            application.bot_data["profiler"] = profiler
-            logger.info("Gemini narrator initialized (model: %s)", settings.gemini_model)
-        except Exception:
-            logger.exception("Failed to initialize Gemini narrator — running without AI")
-            application.bot_data["narrator"] = None
-            application.bot_data["profiler"] = None
-    else:
-        logger.warning("No GEMINI_API_KEY set — running without AI narrator")
-        application.bot_data["narrator"] = None
-        application.bot_data["profiler"] = None
 
 
 async def post_shutdown(application) -> None:
@@ -153,16 +170,30 @@ def main() -> None:
 
     # --- Scheduled jobs ---
     job_queue = app.job_queue
-    if job_queue:
-        # Comeback notifications: every 6h. The eligibility window per tier is
-        # ~12h (see comeback.py `upper = now - timedelta(days=days - 0.5)`) and
-        # comeback_tier dedups sends, so 6h still catches every player while
-        # cutting Neon wake-ups ~6x vs hourly (each wake bills ~5min on Launch).
+    if job_queue and settings.enable_comeback_job:
+        # Every 6h. The eligibility window per tier is ~12h and comeback_tier
+        # dedups sends. Each run wakes Neon (~5 min billed on Launch).
         job_queue.run_repeating(check_comeback_players, interval=21600, first=60)
         logger.info("Comeback notification job scheduled (every 6h)")
 
-    logger.info("Bot handlers registered. Starting polling...")
-    app.run_polling(drop_pending_updates=True)
+    if settings.webhook_url:
+        # Secret derived from the bot token: stable across restarts, no extra
+        # env var, and Telegram sends it back so forged requests are rejected.
+        secret = hashlib.sha256(settings.telegram_bot_token.encode()).hexdigest()[:32]
+        logger.info("Bot handlers registered. Starting webhook on port %d...", settings.port)
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=settings.port,
+            url_path="telegram",
+            webhook_url=settings.webhook_url.rstrip("/") + "/telegram",
+            secret_token=secret,
+            # Keep queued updates: the update that wakes a sleeping container
+            # must not be thrown away on startup.
+            drop_pending_updates=False,
+        )
+    else:
+        logger.info("Bot handlers registered. Starting polling...")
+        app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
